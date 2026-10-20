@@ -45,7 +45,7 @@ function isAllowedOrigin(origin: string): boolean {
 
 /**
  * SQLite/Turso has a single writer. Serialising every route is too slow, but
- * the two-step upload flow needs the raw bytes both for hashing and for S3,
+ * the two-step upload flow needs the raw bytes both for hashing and for Blob,
  * so we capture the decoded JSON body for HMAC verification.
  */
 function installBodyParsers(app: FastifyInstance): void {

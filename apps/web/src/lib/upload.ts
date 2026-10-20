@@ -73,13 +73,19 @@ export function putUpload(
         resolve();
       } else {
         let message = 'The photo upload failed.';
+        let code = 'UPLOAD_FAILED';
         try {
-          const parsed = JSON.parse(request.responseText) as { error?: { message?: string } };
+          const parsed = JSON.parse(request.responseText) as {
+            error?: { message?: string; code?: string };
+          };
           if (parsed.error?.message) message = parsed.error.message;
+          // Keep the API code (e.g. STORAGE_QUOTA_EXHAUSTED) so the form can
+          // offer the text-only fallback instead of a blind retry.
+          if (parsed.error?.code) code = parsed.error.code;
         } catch {
           // Non-JSON error body (proxy timeouts) - keep the friendly default.
         }
-        reject(new UploadError(message, 'UPLOAD_FAILED'));
+        reject(new UploadError(message, code));
       }
     });
 

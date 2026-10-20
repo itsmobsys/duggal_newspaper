@@ -53,6 +53,13 @@ export interface SubmissionImageRow {
   attribution: string | null;
   position: number;
   created_at: string;
+  original_key: string | null;
+  original_url: string | null;
+  original_bytes: number | null;
+  original_mime: string | null;
+  original_store: string | null;
+  original_preserved: number;
+  original_pruned_at: string | null;
 }
 
 export interface UploadRow {
@@ -75,6 +82,13 @@ export interface UploadRow {
   created_at: string;
   stored_at: string | null;
   claimed_at: string | null;
+  original_key: string | null;
+  original_url: string | null;
+  original_bytes: number | null;
+  original_mime: string | null;
+  original_store: string | null;
+  original_preserved: number;
+  original_pruned_at: string | null;
 }
 
 export interface ArticleRow {
@@ -125,6 +139,13 @@ export interface ArticleImageRow {
   attribution: string | null;
   position: number;
   created_at: string;
+  original_key: string | null;
+  original_url: string | null;
+  original_bytes: number | null;
+  original_mime: string | null;
+  original_store: string | null;
+  original_preserved: number;
+  original_pruned_at: string | null;
 }
 
 export interface CategoryRow {

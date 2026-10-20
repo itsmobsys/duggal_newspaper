@@ -66,16 +66,12 @@ const rawSchema = z.object({
   SESSION_PEPPER: z.string().optional(),
   ADMIN_SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
 
-  S3_ENDPOINT: z.string().optional(),
-  S3_REGION: z.string().default('auto'),
-  S3_BUCKET: z.string().optional(),
-  S3_ACCESS_KEY_ID: z.string().optional(),
-  S3_SECRET_ACCESS_KEY: z.string().optional(),
-  S3_PUBLIC_BASE_URL: z.string().optional(),
-  S3_FORCE_PATH_STYLE: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform((value) => value === 'true'),
+  // Vercel Blob (Hobby) - the public store that serves every site photo.
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  // Optional private store used to keep the untouched original uploads.
+  BLOB_PRIVATE_READ_WRITE_TOKEN: z.string().optional(),
+  // Blob keys are immutable, so a long cache is safe. Cannot be under 60s.
+  BLOB_CACHE_MAX_AGE_SECONDS: z.coerce.number().int().min(60).max(31_536_000).default(31_536_000),
   ALLOW_LOCAL_STORAGE: z
     .enum(['true', 'false'])
     .default('false')
@@ -151,20 +147,25 @@ if (isProduction && serviceSecret === workerTickToken) {
   throw new Error('SERVICE_SECRET and WORKER_TICK_TOKEN must be different values.');
 }
 
-const s3Configured = Boolean(
-  raw.S3_ENDPOINT &&
-  raw.S3_BUCKET &&
-  raw.S3_ACCESS_KEY_ID &&
-  raw.S3_SECRET_ACCESS_KEY &&
-  raw.S3_PUBLIC_BASE_URL,
-);
+const blobConfigured = Boolean(raw.BLOB_READ_WRITE_TOKEN);
+const blobOriginalsConfigured = Boolean(raw.BLOB_PRIVATE_READ_WRITE_TOKEN);
 
-if (isProduction && !s3Configured && !raw.ALLOW_LOCAL_STORAGE) {
+if (isProduction && blobConfigured && !blobOriginalsConfigured) {
+  // Not fatal: originals fall back to the public store with a random suffix.
+  console.warn(
+    '[config] BLOB_PRIVATE_READ_WRITE_TOKEN is not set. Original uploads will be kept in the ' +
+      'public Blob store (unguessable URL). Add a private Blob store token to keep them ' +
+      'unreachable without authentication.',
+  );
+}
+
+if (isProduction && !blobConfigured && !raw.ALLOW_LOCAL_STORAGE) {
   // Do not crash the API (health checks and the admin console must still work),
   // but make the misconfiguration impossible to miss.
   console.error(
-    '[config] FATAL CONFIG: object storage is not configured. Uploads will be rejected. ' +
-      'Set S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY and S3_PUBLIC_BASE_URL.',
+    '[config] FATAL CONFIG: photo storage is not configured. Uploads will be rejected. ' +
+      'Create a Vercel Blob store and set BLOB_READ_WRITE_TOKEN (and optionally ' +
+      'BLOB_PRIVATE_READ_WRITE_TOKEN for originals).',
   );
 }
 
@@ -195,14 +196,12 @@ export interface AppConfig {
   sessionPepper: string;
   adminSessionTtlHours: number;
   storage: {
-    mode: 's3' | 'local';
-    endpoint?: string;
-    region: string;
-    bucket?: string;
-    accessKeyId?: string;
-    secretAccessKey?: string;
-    publicBaseUrl?: string;
-    forcePathStyle: boolean;
+    mode: 'blob' | 'local';
+    /** Token for the public Blob store that serves site photos. */
+    blobToken?: string;
+    /** Token for the optional private store that keeps original uploads. */
+    originalsToken?: string;
+    cacheMaxAgeSeconds: number;
     localDir: string;
     configured: boolean;
   };
@@ -260,16 +259,12 @@ export const config: AppConfig = {
   sessionPepper,
   adminSessionTtlHours: raw.ADMIN_SESSION_TTL_HOURS,
   storage: {
-    mode: s3Configured ? 's3' : 'local',
-    endpoint: raw.S3_ENDPOINT,
-    region: raw.S3_REGION,
-    bucket: raw.S3_BUCKET,
-    accessKeyId: raw.S3_ACCESS_KEY_ID,
-    secretAccessKey: raw.S3_SECRET_ACCESS_KEY,
-    publicBaseUrl: raw.S3_PUBLIC_BASE_URL?.replace(/\/$/, ''),
-    forcePathStyle: raw.S3_FORCE_PATH_STYLE,
+    mode: blobConfigured ? 'blob' : 'local',
+    blobToken: raw.BLOB_READ_WRITE_TOKEN || undefined,
+    originalsToken: raw.BLOB_PRIVATE_READ_WRITE_TOKEN || undefined,
+    cacheMaxAgeSeconds: raw.BLOB_CACHE_MAX_AGE_SECONDS,
     localDir: resolveLocalDir(raw.LOCAL_STORAGE_DIR),
-    configured: s3Configured || raw.ALLOW_LOCAL_STORAGE,
+    configured: blobConfigured || raw.ALLOW_LOCAL_STORAGE,
   },
   maxUploadBytes: raw.MAX_UPLOAD_BYTES,
   maxImagesPerSubmission: raw.MAX_IMAGES_PER_SUBMISSION,

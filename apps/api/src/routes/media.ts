@@ -12,8 +12,9 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 /**
- * Local-development media server. In production photos live in R2/S3 and are
- * served from the bucket's public URL, so this route is intentionally inert.
+ * Local-development media server. In production photos live in a Vercel Blob
+ * store and are served from its public URL, so this route is intentionally
+ * inert.
  */
 export async function registerMediaRoutes(app: FastifyInstance, _db: Db): Promise<void> {
   app.get<{ Params: { '*': string } }>('/media/*', async (request, reply) => {

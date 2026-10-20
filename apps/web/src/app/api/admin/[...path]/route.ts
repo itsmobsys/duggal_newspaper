@@ -34,6 +34,7 @@ const ALLOWED_PREFIXES = new Set([
   'audit',
   'ai',
   'diagnostics',
+  'storage',
 ]);
 
 const METHODS = new Set(['GET', 'POST', 'PATCH', 'PUT', 'DELETE']);

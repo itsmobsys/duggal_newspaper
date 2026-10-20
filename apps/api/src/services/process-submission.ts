@@ -351,7 +351,7 @@ async function buildVisionImages(
   for (let index = 0; index < limit; index += 1) {
     const image = images[index]!;
     try {
-      const buffer = await storage.read(image.storage_key);
+      const buffer = await storage.read(image.storage_key, image.url);
       inputs.push({ index, dataUrl: await toVisionDataUrl(buffer) });
     } catch (error) {
       log.warn(

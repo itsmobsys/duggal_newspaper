@@ -8,7 +8,15 @@ export interface SettingDef {
   default: string | number | boolean | string[];
   label: string;
   description: string;
-  group: 'Site' | 'Submissions' | 'Content' | 'Autonomy' | 'Moderation' | 'AI' | 'Appearance';
+  group:
+    | 'Site'
+    | 'Submissions'
+    | 'Content'
+    | 'Autonomy'
+    | 'Moderation'
+    | 'AI'
+    | 'Appearance'
+    | 'Storage';
   public?: boolean;
   min?: number;
   max?: number;
@@ -58,6 +66,12 @@ export interface SettingsValues {
   'appearance.front_page_limit': number;
   'appearance.show_awards': boolean;
   'appearance.ticker_count': number;
+
+  'storage.soft_limit_mb': number;
+  'storage.monthly_advanced_op_limit': number;
+  'storage.preserve_originals': boolean;
+  'storage.original_retention_days': number;
+  'storage.block_uploads_when_full': boolean;
 }
 
 export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
@@ -377,6 +391,56 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     public: true,
     min: 0,
     max: 12,
+  },
+
+  // Vercel Blob Hobby is free but hard-capped (1 GB, 2,000 advanced operations
+  // per month); going over locks the store for 30 days. These thresholds keep
+  // the paper comfortably inside the allowance. Photos are refused past the
+  // soft limit, but text-only submissions always keep working.
+  'storage.soft_limit_mb': {
+    type: 'number',
+    default: 800,
+    label: 'Photo storage soft limit (MB)',
+    description:
+      'Stop accepting photos past this size. Hobby allows 1,000 MB per month in total. Older originals can be pruned to free room.',
+    group: 'Storage',
+    min: 50,
+    max: 1024,
+  },
+  'storage.monthly_advanced_op_limit': {
+    type: 'number',
+    default: 1600,
+    label: 'Monthly upload quota (advanced operations)',
+    description:
+      'Each stored photo uses two or three operations. Hobby allows 2,000 per month, and exceeding it blocks Blob for 30 days.',
+    group: 'Storage',
+    min: 100,
+    max: 2000,
+  },
+  'storage.preserve_originals': {
+    type: 'boolean',
+    default: true,
+    label: 'Keep the original upload',
+    description:
+      'Store the untouched file beside the optimized WebP. Originals are never shown on the site; they exist for verification and takedowns.',
+    group: 'Storage',
+  },
+  'storage.original_retention_days': {
+    type: 'number',
+    default: 90,
+    label: 'Original retention (days)',
+    description: 'Originals older than this are pruned on the hourly maintenance tick.',
+    group: 'Storage',
+    min: 7,
+    max: 730,
+  },
+  'storage.block_uploads_when_full': {
+    type: 'boolean',
+    default: true,
+    label: 'Refuse photos when the free quota is full',
+    description:
+      'Recommended. Story text is still accepted; only photos pause until the next month or a prune.',
+    group: 'Storage',
   },
 };
 

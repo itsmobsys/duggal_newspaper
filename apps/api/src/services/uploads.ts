@@ -2,11 +2,20 @@ import type { Db } from '../db/client.js';
 import type { UploadRow } from '../db/types.js';
 import { config } from '../config.js';
 import { hashUploadToken, safeEqual, sha256Hex } from '../lib/crypto.js';
-import { badRequest, notFound, unauthorized } from '../lib/errors.js';
+import { badRequest, notFound, unauthorized, AppError } from '../lib/errors.js';
 import { newId, randomToken } from '../lib/id.js';
 import { nowIso } from '../lib/time.js';
 import { processImage } from './images.js';
-import { buildStorageKey, getStorage } from './storage.js';
+import { buildStorageKey, getOriginalsTarget, getStorage, type StoredObject } from './storage.js';
+import {
+  classifyBlobError,
+  markStorageDegraded,
+  recordAdvancedOps,
+  resolveStoragePolicy,
+  storageBlockedMessage,
+  STORAGE_QUOTA_ERROR,
+} from './storage-usage.js';
+import { loadSettings } from '../settings.js';
 
 export interface UploadTicket {
   uploadId: string;
@@ -104,30 +113,88 @@ export async function storeUpload(
 
   const processed = await processImage(input.buffer);
   const storage = getStorage();
+  const settings = await loadSettings(db);
+  const policy = resolveStoragePolicy(settings);
   const date = new Date();
-  const fullKey = buildStorageKey({
-    scope: 'uploads',
-    date,
-    submissionId: row.id,
-    imageId: row.id,
-    variant: 'full',
-  });
-  const thumbKey = buildStorageKey({
-    scope: 'uploads',
-    date,
-    submissionId: row.id,
-    imageId: row.id,
-    variant: 'thumb',
-  });
 
-  const [full, thumb] = await Promise.all([
-    storage.put(fullKey, processed.full, 'image/webp'),
-    storage.put(thumbKey, processed.thumb, 'image/webp'),
-  ]);
+  const keyFor = (variant: 'full' | 'thumb') =>
+    buildStorageKey({
+      scope: 'uploads',
+      date,
+      submissionId: row.id,
+      imageId: row.id,
+      variant,
+    });
+  const fullKey = keyFor('full');
+  const thumbKey = keyFor('thumb');
+
+  let full: StoredObject;
+  let thumb: StoredObject;
+  try {
+    // The two derivatives the site renders are written first: if the free
+    // allowance is already gone, this is where we find out, and the caller
+    // turns it into a "file it without photos" message instead of a dead end.
+    [full, thumb] = await Promise.all([
+      storage.put(fullKey, processed.full, { contentType: 'image/webp' }),
+      storage.put(thumbKey, processed.thumb, { contentType: 'image/webp' }),
+    ]);
+  } catch (error) {
+    const classified = classifyBlobError(error);
+    if (classified.kind === 'quota' || classified.kind === 'auth') {
+      await markStorageDegraded(db, { code: classified.kind, message: classified.message });
+      throw new AppError(503, STORAGE_QUOTA_ERROR, storageBlockedMessage('degraded'));
+    }
+    throw new AppError(
+      502,
+      'UPLOAD_STORAGE_FAILED',
+      'The photo could not be stored. Try again, or file the story without photos.',
+    );
+  }
+
+  let ops = 2;
+  let storedBytes = full.bytes + thumb.bytes;
+
+  // Keep the untouched upload too. It is never rendered on the site - it exists
+  // so a re-encode or a takedown can be checked against exactly what was filed.
+  // A failure here never costs the submission its photos.
+  let original: StoredObject | null = null;
+  let originalError: string | null = null;
+  if (policy.preserveOriginals) {
+    const target = getOriginalsTarget();
+    if (target) {
+      const extension = processed.format === 'jpeg' ? 'jpg' : processed.format;
+      const originalKey = buildStorageKey({
+        scope: 'uploads',
+        date,
+        submissionId: row.id,
+        imageId: row.id,
+        variant: 'original',
+        extension,
+      });
+      try {
+        original = await target.driver.put(originalKey, input.buffer, {
+          contentType: processed.originalMime,
+          addRandomSuffix: target.addRandomSuffix,
+        });
+        ops += 1;
+        storedBytes += original.bytes;
+      } catch (error) {
+        const classified = classifyBlobError(error);
+        originalError = classified.message;
+        if (classified.kind === 'quota' || classified.kind === 'auth') {
+          await markStorageDegraded(db, { code: classified.kind, message: classified.message });
+        }
+      }
+    }
+  }
+
+  await recordAdvancedOps(db, ops, storedBytes);
 
   await db.run(
     `UPDATE uploads SET status = 'stored', storage_key = ?, thumb_key = ?, url = ?, thumb_url = ?,
-       mime = ?, bytes = ?, width = ?, height = ?, checksum = ?, stored_at = ?
+       mime = ?, bytes = ?, width = ?, height = ?, checksum = ?, stored_at = ?,
+       original_key = ?, original_url = ?, original_bytes = ?, original_mime = ?,
+       original_store = ?, original_preserved = ?
      WHERE id = ? AND status = 'pending'`,
     [
       full.key,
@@ -140,6 +207,12 @@ export async function storeUpload(
       processed.height,
       processed.checksum,
       nowIso(),
+      original?.key ?? null,
+      original?.url ?? null,
+      original ? input.buffer.byteLength : null,
+      original ? processed.originalMime : null,
+      original?.store ?? null,
+      original ? 1 : 0,
       row.id,
     ],
   );
@@ -155,6 +228,10 @@ export async function storeUpload(
         width: processed.width,
         height: processed.height,
         sha: sha256Hex(processed.full).slice(0, 12),
+        originalBytes: original?.bytes ?? 0,
+        originalStore: original?.store ?? null,
+        originalSkipped: originalError,
+        ops,
       }),
       input.ipHash,
       nowIso(),

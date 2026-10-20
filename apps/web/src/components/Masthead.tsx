@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { formatDate, weekdayFor } from '@/lib/format';
 import type { CategoryView, PublicSettings } from '@/lib/types';
+import { GitHubLink } from './GitHubLink';
 
 export interface MastheadProps {
   settings: PublicSettings;
@@ -29,6 +30,8 @@ export function Masthead({ settings, categories, editionDate }: MastheadProps): 
           <Link href="/submit">Submit a story</Link>
           <span className="dot" aria-hidden="true" />
           <Link href="/status">Track submission</Link>
+          <span className="dot" aria-hidden="true" />
+          <GitHubLink />
         </div>
       </div>
 

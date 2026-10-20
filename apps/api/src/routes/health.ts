@@ -2,7 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { config } from '../config.js';
 import type { Db } from '../db/client.js';
 import { nowIso } from '../lib/time.js';
-import { storageReady } from '../services/storage.js';
+import { storageStatus } from '../services/storage.js';
+import { getStorageDegraded } from '../services/storage-usage.js';
 
 export async function registerHealthRoutes(app: FastifyInstance, db: Db): Promise<void> {
   app.get('/healthz', async () => ({
@@ -26,9 +27,14 @@ export async function registerHealthRoutes(app: FastifyInstance, db: Db): Promis
       };
     }
 
+    const storage = storageStatus();
+    const degraded = getStorageDegraded();
     checks.storage = {
-      ok: storageReady(),
-      detail: storageReady() ? config.storage.mode : 'not configured - photo uploads disabled',
+      ok: storage.ready,
+      detail: storage.ready
+        ? `${storage.mode} storage, originals: ${storage.originals}` +
+          (degraded.active ? `; writes degraded: ${degraded.message ?? degraded.code}` : '')
+        : 'not configured - photo uploads disabled',
     };
     checks.ai = {
       ok: Boolean(config.ai.apiKey),

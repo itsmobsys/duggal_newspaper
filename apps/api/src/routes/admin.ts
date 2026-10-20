@@ -17,6 +17,7 @@ import type {
 import { AiUnavailableError } from '../lib/errors.js';
 import { hashToken, verifyPassword } from '../lib/crypto.js';
 import { AppError, badRequest, notFound, unauthorized } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
 import { newId, randomToken } from '../lib/id.js';
 import { consumeRateLimit } from '../lib/rate-limit.js';
 import { isSafeExternalUrl, sanitizeUserText, slugify, stripHtmlLike } from '../lib/text.js';
@@ -33,12 +34,20 @@ import { AiResultSchema, type AiResult } from '../services/ai/schema.js';
 import { publishArticle, revalidateWeb } from '../services/publishing.js';
 import { enqueueJob, listJobs, queueStats, retryJob } from '../services/queue.js';
 import { getSubmissionWithImages, AI_PAUSED_REASON } from '../services/process-submission.js';
+import { asStore, readObject, storageStatus } from '../services/storage.js';
+import { pruneOriginals } from '../services/storage-maintenance.js';
+import { clearStorageDegraded, getStorageUsage } from '../services/storage-usage.js';
 import { kickWorkerTick, runWorkerTick } from '../services/worker.js';
 import { clientIpHash, parsePagination, writeAudit, type AdminContext } from './helpers.js';
 
 const LoginSchema = z.object({
   email: z.string().trim().email().max(200),
   password: z.string().min(8).max(200),
+});
+
+const PruneSchema = z.object({
+  force: z.boolean().optional(),
+  limit: z.number().int().min(1).max(100).optional(),
 });
 
 const SubmissionActionSchema = z.object({
@@ -332,7 +341,7 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
         editionHour: settings['autonomy.edition_hour'],
         timezone: settings['site.timezone'],
       },
-      storage: { configured: config.storage.configured, mode: config.storage.mode },
+      storage: { ...storageStatus() },
     };
   });
 
@@ -1307,6 +1316,146 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
     }
   });
 
+  // ------------------------------------------------------------------- storage
+  app.get('/admin/storage', async (request) => {
+    await requireAdmin(db, request);
+    const usage = await getStorageUsage(db);
+    const [history, counts] = await Promise.all([
+      db.all<{
+        month: string;
+        advanced_ops: number;
+        simple_ops: number;
+        bytes_uploaded: number;
+        bytes_pruned: number;
+      }>(
+        `SELECT month, advanced_ops, simple_ops, bytes_uploaded, bytes_pruned
+         FROM storage_usage ORDER BY month DESC LIMIT 6`,
+      ),
+      db.get<{ photos: number; originals: number; expired: number }>(
+        `SELECT
+           (SELECT COUNT(*) FROM article_images) AS photos,
+           (SELECT COUNT(*) FROM article_images WHERE original_preserved = 1) AS originals,
+           (SELECT COUNT(*) FROM uploads WHERE status = 'expired') AS expired`,
+      ),
+    ]);
+    return {
+      usage,
+      history,
+      counts: counts ?? { photos: 0, originals: 0, expired: 0 },
+      config: {
+        mode: config.storage.mode,
+        cacheMaxAgeSeconds: config.storage.cacheMaxAgeSeconds,
+        privateOriginalsStore: Boolean(config.storage.originalsToken),
+        maxUploadBytes: config.maxUploadBytes,
+        maxImagesPerSubmission: config.maxImagesPerSubmission,
+      },
+    };
+  });
+
+  app.post('/admin/storage/prune', async (request) => {
+    const ctx = await requireAdmin(db, request);
+    const body = PruneSchema.parse(request.body ?? {});
+    const result = await pruneOriginals(db, logger, {
+      force: body.force,
+      limit: body.limit,
+    });
+    const usage = await getStorageUsage(db);
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: 'storage.prune',
+      targetType: 'storage',
+      targetId: 'vercel-blob',
+      detail: { ...result, reason: body.force ? 'admin-force' : result.reason },
+      ipHash: clientIpHash(request),
+    });
+    return { ...result, usage };
+  });
+
+  app.post('/admin/storage/recheck', async (request) => {
+    const ctx = await requireAdmin(db, request);
+    const cleared = clearStorageDegraded();
+    const usage = await getStorageUsage(db);
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: 'storage.recheck',
+      targetType: 'storage',
+      targetId: 'vercel-blob',
+      detail: { degraded: cleared, exhausted: usage.exhausted, reason: usage.reason },
+      ipHash: clientIpHash(request),
+    });
+    return { usage, degraded: cleared };
+  });
+
+  /**
+   * Download the untouched original a user filed. Admin-only: originals may
+   * still carry EXIF/GPS and are deliberately never served by the public site.
+   */
+  app.get<{ Params: { id: string } }>('/admin/originals/:id', async (request, reply) => {
+    const ctx = await requireAdmin(db, request);
+    const id = request.params.id;
+
+    let row = await db.get<{
+      original_key: string | null;
+      original_url: string | null;
+      original_store: string | null;
+      original_mime: string | null;
+      original_preserved: number;
+    }>(
+      `SELECT original_key, original_url, original_store, original_mime, original_preserved
+       FROM uploads WHERE id = ?`,
+      [id],
+    );
+
+    if (!row) {
+      const image = await db.get<{
+        upload_id: string | null;
+        original_key: string | null;
+        original_url: string | null;
+        original_store: string | null;
+        original_mime: string | null;
+        original_preserved: number;
+      }>(
+        `SELECT upload_id, original_key, original_url, original_store, original_mime, original_preserved
+         FROM article_images WHERE id = ?`,
+        [id],
+      );
+      if (image?.upload_id) {
+        row = await db.get(
+          `SELECT original_key, original_url, original_store, original_mime, original_preserved
+           FROM uploads WHERE id = ?`,
+          [image.upload_id],
+        );
+      }
+      if (!row && image) row = image;
+    }
+
+    if (!row?.original_preserved || !row.original_key) {
+      throw notFound('No preserved original for that photo. It may have been pruned.');
+    }
+
+    const buffer = await readObject(
+      row.original_key,
+      row.original_url,
+      asStore(row.original_store),
+    );
+    const mime = row.original_mime ?? 'application/octet-stream';
+    const extension = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: 'storage.original.download',
+      targetType: 'upload',
+      targetId: id,
+      detail: { bytes: buffer.byteLength, store: row.original_store },
+      ipHash: clientIpHash(request),
+    });
+
+    reply.header('Content-Type', mime);
+    reply.header('Content-Disposition', `attachment; filename="${id}-original.${extension}"`);
+    reply.header('Cache-Control', 'private, no-store');
+    return reply.send(buffer);
+  });
+
   // --------------------------------------------------------------- diagnostics
   app.get('/admin/diagnostics', async (request) => {
     await requireAdmin(db, request);
@@ -1320,7 +1469,7 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
        ORDER BY updated_at DESC LIMIT 10`,
     );
     return {
-      storage: { configured: config.storage.configured, mode: config.storage.mode },
+      storage: { ...storageStatus(), usage: await getStorageUsage(db) },
       ai: { configured: Boolean(config.ai.apiKey), model: config.ai.model },
       worker: config.worker,
       timezone: config.siteTimezone,

@@ -438,6 +438,56 @@ hr {
   border-radius: 50%;
 }
 
+/* "This paper is open source" - a real link, not a decorative badge. */
+.github-link,
+.github-link-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ink);
+  text-decoration: none;
+  line-height: 1;
+}
+
+.github-link {
+  padding: 4px 9px 4px 7px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 999px;
+}
+
+.github-link:hover,
+.github-link:focus-visible,
+.github-link-text:hover,
+.github-link-text:focus-visible {
+  color: var(--accent);
+}
+
+.github-link:hover,
+.github-link:focus-visible {
+  border-color: var(--accent);
+}
+
+.github-icon {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.github-link--footer {
+  align-self: center;
+  padding: 7px 13px 7px 11px;
+  background: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.github-link--footer .github-icon {
+  width: 14px;
+  height: 14px;
+}
+
 .brand {
   display: block;
   text-align: center;

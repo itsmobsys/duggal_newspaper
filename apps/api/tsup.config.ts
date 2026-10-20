@@ -10,7 +10,7 @@ export default defineConfig({
   sourcemap: true,
   splitting: false,
   // Native + heavy SDK packages stay external; everything else is bundled.
-  external: ['sharp', '@libsql/client', '@aws-sdk/client-s3'],
+  external: ['sharp', '@libsql/client', '@vercel/blob'],
   banner: {
     js: [
       "import { createRequire as __dbdCreateRequire } from 'node:module';",

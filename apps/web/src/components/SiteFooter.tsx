@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { CategoryView, PublicSettings } from '@/lib/types';
+import { GitHubLink } from './GitHubLink';
 
 export interface SiteFooterProps {
   settings: PublicSettings;
@@ -15,10 +16,11 @@ export function SiteFooter({ settings, categories }: SiteFooterProps): React.JSX
             Duggal <em>Badmosh</em> Daily
           </span>
           <p>{settings.site.description}</p>
-          <p style={{ marginTop: '0.75rem' }}>
+          <p style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <Link className="button button--primary" href="/submit">
               Send a story
             </Link>
+            <GitHubLink className="github-link--footer" />
           </p>
         </div>
 

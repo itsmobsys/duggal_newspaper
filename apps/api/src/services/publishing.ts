@@ -132,8 +132,9 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
       const caption = captionsByIdx.get(position);
       await tx.run(
         `INSERT INTO article_images (id, article_id, upload_id, storage_key, thumb_key, url, thumb_url,
-           mime, bytes, width, height, checksum, caption, alt_text, attribution, position, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           mime, bytes, width, height, checksum, caption, alt_text, attribution, position, created_at,
+           original_key, original_url, original_bytes, original_mime, original_store, original_preserved)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           newId('aimg'),
           articleId,
@@ -152,6 +153,12 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
           anonymous ? 'Submitted photo' : `Photo: ${authorDisplay}`,
           position,
           now,
+          image.original_key,
+          image.original_url,
+          image.original_bytes,
+          image.original_mime,
+          image.original_store,
+          image.original_preserved,
         ],
       );
       position += 1;

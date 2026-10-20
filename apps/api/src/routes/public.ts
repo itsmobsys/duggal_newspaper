@@ -19,6 +19,11 @@ import { loadSettings, toPublicSettings } from '../settings.js';
 import { analyzeHeuristics } from '../services/moderation.js';
 import { enqueueJob } from '../services/queue.js';
 import {
+  assertUploadsAllowed,
+  getStorageUsage,
+  storageBlockedMessage,
+} from '../services/storage-usage.js';
+import {
   claimUploads,
   createUploadTickets,
   storeUpload,
@@ -146,6 +151,7 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
   // ---------------------------------------------------------------- bootstrap
   app.get('/public/bootstrap', async () => {
     const settings = await loadSettings(db);
+    const storage = await getStorageUsage(db, settings);
     const categories = await db.all<CategoryRow>(
       `SELECT slug, name, description, accent, sort_order FROM categories
        WHERE enabled = 1 ORDER BY sort_order ASC, name ASC`,
@@ -162,8 +168,17 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
         maxUploadBytes: config.maxUploadBytes,
         maxImages: Math.min(config.maxImagesPerSubmission, settings['submissions.max_images']),
         uploadTicketTtlMinutes: config.uploadTicketTtlMinutes,
-        storageReady: config.storage.configured,
+        storageReady: storage.store.ready,
         aiConfigured: Boolean(config.ai.apiKey),
+      },
+      // Enough for the form to explain itself before a photo is chosen.
+      storage: {
+        ready: storage.store.ready,
+        mode: storage.store.mode,
+        originals: storage.store.originals,
+        quotaExhausted: storage.exhausted,
+        reason: storage.reason,
+        message: storage.exhausted ? storageBlockedMessage(storage.reason) : null,
       },
     };
   });
@@ -186,6 +201,9 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
         'Photo storage is not configured on the server yet. Stories without photos still work.',
       );
     }
+    // Refuse before issuing tickets when the free allowance is spent: the form
+    // shows a friendly note and the story can still be filed without photos.
+    await assertUploadsAllowed(db);
     if (body.files.length === 0) return { tickets: [] as UploadTicket[] };
     const tickets = await createUploadTickets(db, { files: body.files, ipHash });
     return { tickets };
@@ -213,6 +231,10 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
 
       const buffer = Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);
       if (buffer.byteLength === 0) throw badRequest('No image data received.', 'IMAGE_EMPTY');
+
+      // Re-check at write time: a burst of tickets could have drained the
+      // allowance between init and this PUT.
+      await assertUploadsAllowed(db);
 
       const metadata = await storeUpload(db, {
         uploadId: request.params.id,
@@ -398,8 +420,9 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
       for (const upload of uploads) {
         await tx.run(
           `INSERT INTO submission_images (id, submission_id, upload_id, storage_key, thumb_key, url, thumb_url,
-             mime, bytes, width, height, checksum, attribution, position, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             mime, bytes, width, height, checksum, attribution, position, created_at,
+             original_key, original_url, original_bytes, original_mime, original_store, original_preserved)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             newId('simg'),
             submissionId,
@@ -416,6 +439,12 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
             identityMode === 'anonymous' ? 'Submitted photo' : `Photo: ${body.authorName}`,
             position,
             now,
+            upload.original_key,
+            upload.original_url,
+            upload.original_bytes,
+            upload.original_mime,
+            upload.original_store,
+            upload.original_preserved,
           ],
         );
         await tx.run(

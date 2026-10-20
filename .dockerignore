@@ -1,0 +1,55 @@
+# ---------------------------------------------------------------------------
+# Docker build context = repository root (the image needs db/migrations).
+# Keep the context small and make it impossible to bake secrets into a layer.
+# ---------------------------------------------------------------------------
+
+# version control + tooling
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# dependencies and build output are produced inside the image
+**/node_modules
+**/.next
+**/dist
+**/build
+**/coverage
+**/.turbo
+**/*.tsbuildinfo
+
+# the website is deployed separately by Vercel
+apps/web
+
+# tests and non-runtime tooling
+apps/api/test
+apps/api/scripts
+apps/api/vitest.config.ts
+apps/api/eslint.config.js
+apps/api/.eslintrc*
+apps/api/.prettierrc*
+apps/api/.prettierignore
+
+# secrets and local state - never shipped
+.env
+.env.*
+!.env.example
+data
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm
+.storage
+logs
+*.log
+
+# docs and licence are not needed at runtime
+*.md
+docs
+LICENSE
+render.yaml.bak
+
+# docker metadata itself
+.dockerignore
+Dockerfile

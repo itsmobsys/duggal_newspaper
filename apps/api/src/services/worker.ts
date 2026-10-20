@@ -27,7 +27,8 @@ import {
   renewLease,
   type JobRecord,
 } from './queue.js';
-import { getStorage } from './storage.js';
+import { asStore, deleteObject } from './storage.js';
+import { pruneOriginals } from './storage-maintenance.js';
 
 export interface TickOptions {
   maxJobs?: number;
@@ -114,17 +115,28 @@ async function cleanupUploads(db: Db, log: Logger): Promise<void> {
     [now],
   );
   if (stale.length === 0) return;
-  const storage = config.storage.configured ? getStorage() : null;
   for (const upload of stale) {
-    if (storage) {
-      if (upload.storage_key) await storage.delete(upload.storage_key);
-      if (upload.thumb_key) await storage.delete(upload.thumb_key);
-    }
+    // Deletes are free on Vercel Blob, so messy abandoned uploads never cost
+    // quota - but they do cost storage, which is why this runs hourly.
+    await deleteObject(upload.storage_key, 'public');
+    await deleteObject(upload.thumb_key, 'public');
+    await deleteObject(upload.original_key, asStore(upload.original_store));
     await db.run(`UPDATE uploads SET status = 'expired' WHERE id = ? AND submission_id IS NULL`, [
       upload.id,
     ]);
   }
   log.info({ count: stale.length }, 'expired orphan uploads cleaned up');
+
+  // Free room when the store is near the Hobby ceiling by dropping the oldest
+  // untouched originals. Optimized photos are never touched here.
+  try {
+    await pruneOriginals(db, log);
+  } catch (error) {
+    log.warn(
+      { error: error instanceof Error ? error.message : String(error) },
+      'original pruning failed; will retry on the next tick',
+    );
+  }
 }
 
 async function recoverFailedSubmissions(db: Db, log: Logger): Promise<void> {

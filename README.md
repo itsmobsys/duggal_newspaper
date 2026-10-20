@@ -22,7 +22,7 @@ Built for a Discord community. Runs on free tiers. MIT licensed.
 | **Daily editions** | The AI starts assembling tomorrow's edition at **23:00 IST**; it is live at **00:00 IST**. A deterministic fallback layout is used if the AI is unavailable. |
 | **Reading experience** | Dynamic front page, breaking ticker, categories, article pages, photo desk, search, tags, archives, editions, awards, corrections, RSS, sitemap and Open Graph images. New stories appear without a redeploy. |
 | **Admin console** | Moderation queue, article editor, corrections, job retries, settings, AI diagnostics, audit log, and the kill switch. |
-| **Cost** | ₹0/month on Vercel Hobby + Render Free + Turso Free + Cloudflare R2 + the NVIDIA developer API. |
+| **Cost** | ₹0/month on Vercel Hobby + Render Free + Turso Free + Vercel Blob (Hobby) + the NVIDIA developer API. |
 
 ---
 
@@ -35,7 +35,7 @@ Reader
 Vercel (Next.js)  ──────────────►  Render (Fastify API)  ──────►  Turso (SQLite)
   │   signed BFF calls                    │  queue + worker           ▲
   │                                       ├─ NVIDIA Nemotron          │
-  │                                       └─ sharp → R2 photos        │
+  │                                       └─ sharp → Vercel Blob      │
   │                                                                  │
   └──────────── reads Turso directly (ISR) ──────────────────────────┘
 ```
@@ -133,7 +133,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 Put one each into `SERVICE_SECRET`, `WORKER_TICK_TOKEN` and `SESSION_PEPPER`.
 Leave `TURSO_DATABASE_URL=file:../../data/duggal.db` for local SQLite and
-`ALLOW_LOCAL_STORAGE=true` so photos land in `.storage/` instead of R2.
+`ALLOW_LOCAL_STORAGE=true` so photos land in `.storage/` instead of Vercel Blob.
 
 `NVIDIA_API_KEY` is optional locally. Without it the desk still accepts
 submissions and parks them in **queued for review**; the scheduler requeues them
@@ -220,10 +220,9 @@ Open <http://localhost:3000> and <http://localhost:3000/admin>.
 | `WORKER_TICK_TOKEN` | yes | Shared with GitHub Actions (≥24 chars) |
 | `SESSION_PEPPER` | yes | Admin session hashing (≥24 chars) |
 | `ADMIN_SESSION_TTL_HOURS` | no | Default 72 |
-| `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` | prod | R2/B2/S3-compatible |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | prod | Object read/write only |
-| `S3_PUBLIC_BASE_URL` | prod | Public bucket/CDN base, no trailing slash |
-| `S3_FORCE_PATH_STYLE` | no | `false` for R2 |
+| `BLOB_READ_WRITE_TOKEN` | prod | Vercel Blob public store token |
+| `BLOB_PRIVATE_READ_WRITE_TOKEN` | no | Private store for originals (recommended) |
+| `BLOB_CACHE_MAX_AGE_SECONDS` | no | Default 31536000 (one year) |
 | `MAX_UPLOAD_BYTES` | no | Per photo, default 8 MiB |
 | `MAX_IMAGES_PER_SUBMISSION` | no | Default 4 |
 | `UPLOAD_TICKET_TTL_MINUTES` | no | Default 30 |
@@ -281,13 +280,66 @@ TURSO_DATABASE_URL='libsql://…' TURSO_AUTH_TOKEN='…' \
   npm run admin:create -- you@example.com 'a-long-password'
 ```
 
-### 2. Render (API)
+### 2. Render (API, Docker)
 
-1. **New → Blueprint**, pick this repository. `render.yaml` is detected.
+The repository ships a production `Dockerfile`. Render builds that image and
+runs it; nothing is installed at deploy time, and the runtime image contains no
+source, tests, dev dependencies or secrets.
+
+**Blueprint route (recommended)**
+
+1. **New → Blueprint**, pick this repository. `render.yaml` is detected and
+   already declares `runtime: docker`.
 2. Fill every `sync: false` variable. At minimum: `WEB_ORIGIN`,
-   `API_PUBLIC_URL`, Turso, NVIDIA, the three secrets, and R2.
+   `API_PUBLIC_URL`, Turso, NVIDIA, the three shared secrets, and the Blob token.
 3. Deploy. Watch the log for `database migrations checked` and
    `Duggal Badmosh API is printing`.
+
+**Manual service (identical settings)**
+
+| Setting | Value |
+| --- | --- |
+| Language / runtime | **Docker** |
+| Dockerfile path | `./Dockerfile` |
+| Docker build context directory | `.` (repository root — the image needs `db/migrations`) |
+| Build command | *(empty — the Dockerfile builds everything)* |
+| Start command | *(empty — the image `CMD` is `node dist/server.js`)* |
+| Health check path | `/healthz` |
+| Instance type | **Free** (512 MB) |
+| Port | Render injects `PORT`; the server binds `0.0.0.0:$PORT` |
+| Persistent disk | none — Turso and Blob hold all state |
+| Auto-deploy | on (or off, if you prefer to ship deliberately) |
+
+What the image guarantees:
+
+- runs as the unprivileged `node` user (uid 1000), never root;
+- `NODE_ENV=production` and `--max-old-space-size=320`, sized for the 512 MB
+  free instance (raise it in Render if you upgrade the plan);
+- `docker stop` reaches the server's SIGTERM handler, so in-flight requests and
+  the database connection close cleanly;
+- `db/migrations/*.sql` are applied on boot (set `RUN_MIGRATIONS=false` only if
+  you migrate separately).
+
+**Build and run the same image locally**
+
+```bash
+docker build -t duggal-api .
+docker run --rm -p 8080:8080 --env-file .env duggal-api
+curl http://localhost:8080/healthz
+```
+
+`PORT` and `HOST` come from the environment and default to `8080` / `0.0.0.0`.
+With `ALLOW_LOCAL_STORAGE=true` and no Blob token, photos go to `.storage/`, so
+you can exercise the full submission flow without touching the cloud.
+
+Create the production admin user from your machine, against Turso (the image has
+no dev tooling):
+
+```bash
+TURSO_DATABASE_URL='libsql://…' TURSO_AUTH_TOKEN='…' \
+  npm run admin:create -- you@example.com 'a-long-password'
+```
+
 4. Verify:
    - `https://<service>.onrender.com/healthz` → `200`
    - `https://<service>.onrender.com/readyz` → `200` when DB + AI are configured
@@ -310,24 +362,38 @@ optional integration is missing. `/readyz` is the deeper report for alerts.
 
 The site reads Turso directly, so publishing never waits for a Vercel deploy.
 
-### 4. Photo storage (Cloudflare R2)
+### 4. Photo storage (Vercel Blob, Hobby)
 
-1. Create a bucket, e.g. `duggal-photos`.
-2. Enable public access (custom domain or the `r2.dev` development URL).
-3. Create an API token with **Object Read & Write** for that bucket.
-4. On Render:
+1. Vercel dashboard → **Storage → Create Database → Blob**. Copy the
+   **read/write token**.
+2. Paste it into Render as `BLOB_READ_WRITE_TOKEN` (server-side only; it is
+   never sent to the browser).
+3. Optional but recommended: create a second Blob store with **private** access
+   for untouched originals and set `BLOB_PRIVATE_READ_WRITE_TOKEN`. Without it,
+   originals go to the public store under an unguessable random suffix.
+4. Nothing else to configure: the browser uploads to Render, and Render writes to
+   Blob. No bucket policy, no CORS, no public-bucket setup.
 
-```dotenv
-S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-S3_REGION=auto
-S3_BUCKET=duggal-photos
-S3_ACCESS_KEY_ID=…
-S3_SECRET_ACCESS_KEY=…
-S3_PUBLIC_BASE_URL=https://cdn.example.com
-```
+**Hobby limits and what the newsroom does about them**
 
-No bucket CORS is needed: the browser uploads to Render, and Render writes to
-R2. Backblaze B2 and Supabase Storage work the same way.
+| Hobby allowance (per month) | This project |
+| --- | --- |
+| 1 GB storage | soft limit **800 MB** (`storage.soft_limit_mb`) |
+| 10,000 simple ops | deletes are free, so cleanup costs nothing |
+| 2,000 advanced ops | budget **1,600** (`storage.monthly_advanced_op_limit`, clamped to 2,000); one `put()` = one advanced op |
+| 10 GB data transfer | photos are resized before storage and served from the Blob CDN |
+
+Exceeding the allowance does **not** bill you: Blob becomes inaccessible for
+roughly the rest of the 30-day billing period. So the API refuses new photo
+uploads *before* that happens (`503 STORAGE_QUOTA_EXHAUSTED`), shows a notice on
+the submit page, and keeps accepting **text-only submissions**. Nothing is lost —
+the story still publishes without pictures. Originals are kept for 90 days
+(`storage.original_retention_days`) and trimmed oldest-first when capacity is
+tight; deletes are free. Admins can watch usage, prune early or re-check the
+store in **Admin → Diagnostics → Storage**.
+
+Set `BLOB_HOBBY_PLAN`-backed settings in **Admin → Settings → Storage** if you
+want stricter limits; the token can be rotated in Render without a code change.
 
 ### 5. Five-minute tick
 
@@ -348,7 +414,7 @@ keep the in-process worker enabled.
 - [ ] `/api/health` on Vercel
 - [ ] Admin login works and the cookie is `HttpOnly`
 - [ ] A text-only submission publishes (with a valid NVIDIA key)
-- [ ] A photo submission stores in R2 and renders on the article
+- [ ] A photo submission stores in Vercel Blob and renders on the article
 - [ ] A risky submission lands in **queued for review**
 - [ ] `/api/revalidate` is reached after publishing (Render logs)
 - [ ] The edition appears at `/edition/<tomorrow>` after 23:00 IST
@@ -476,12 +542,12 @@ with the production Turso environment.
 | **Vercel Hobby** | Personal/non-commercial, generous bandwidth | Fine for a community paper with no ads. Check Vercel's terms for your use. |
 | **Render Free** | 512 MB RAM, 0.1 CPU, sleeps after ~15 min, 750 instance-hours/month | One always-warm service roughly fits in 750 h, but deploys and restarts eat headroom. AI calls are network-bound; image processing is slow but workable. |
 | **Turso Free** | Small storage, generous row reads | The database holds text and metadata only. Photos live in object storage. Limits change — check the dashboard. |
-| **Cloudflare R2** | 10 GB storage, free egress | Plenty for a community paper. Compress uploads to ≤8 MiB and keep 4 per story. |
+| **Vercel Blob (Hobby)** | 1 GB storage, 10,000 simple + 2,000 advanced ops, 10 GB transfer | Plenty for a community paper, and overage suspends access instead of billing. Compress uploads to ≤8 MiB and keep 4 per story. |
 | **NVIDIA developer API** | Free credits / rate limits | Rate-limited. `AI_MAX_RPM=28` keeps the client polite. If credits run out, stories wait in the queue. |
 | **GitHub Actions** | Free for public repos | A 5-minute cron is ~8,600 runs/month. Keep the workflow lean. |
 
-Free tiers change. The code only assumes: HTTP, SQLite-compatible SQL, and an
-S3-compatible bucket. Nothing here requires a paid plan to run locally.
+Free tiers change. The code only assumes: HTTP, SQLite-compatible SQL, and a
+Vercel Blob token. Nothing here requires a paid plan to run locally.
 
 ---
 
@@ -539,8 +605,15 @@ Render Free is waking up. The five-minute pinger prevents this in normal
 operation. The BFF already shows a "waking up" message on 502s.
 
 **Photos return 503 `STORAGE_NOT_CONFIGURED`.**
-R2 is not configured. Set the `S3_*` variables on Render, or use
+Vercel Blob is not configured. Set `BLOB_READ_WRITE_TOKEN` on Render, or use
 `ALLOW_LOCAL_STORAGE=true` locally. Readers can still submit text-only stories.
+
+**Photos return 503 `STORAGE_QUOTA_EXHAUSTED`.**
+The Hobby allowance is used up (800 MB soft limit or the monthly advanced-op
+budget). Blob would be suspended anyway, so uploads stop early instead of
+failing halfway. Text submissions keep working. Free space in **Admin →
+Diagnostics → Storage → Prune originals**, raise `storage.soft_limit_mb`, or wait
+for next month's reset.
 
 **`/readyz` says degraded but the site works.**
 That is intentional: missing AI or storage is a degraded capability, not a dead

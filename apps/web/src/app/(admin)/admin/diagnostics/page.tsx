@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AiTestButton } from '@/components/admin/AiTestButton';
+import { StoragePanel } from '@/components/admin/StoragePanel';
 import { adminServerFetch } from '@/lib/admin-server';
 import { formatDateTime } from '@/lib/format';
 import styles from '@/components/admin/ops.module.css';
@@ -30,8 +31,31 @@ interface RecentError {
   attempts: number;
 }
 
+interface StorageUsage {
+  month: string;
+  bytes: { published: number; pending: number; originals: number; total: number };
+  ops: { advanced: number; simple: number };
+  limits: {
+    preserveOriginals: boolean;
+    originalRetentionDays: number;
+    blockWhenFull: boolean;
+    softStorageBytes: number;
+    softAdvancedOps: number;
+    retentionDays: number;
+  };
+  headroom: { storageBytes: number; advancedOps: number };
+  exhausted: boolean;
+  reason: 'storage' | 'ops' | 'degraded' | null;
+  degraded: { active: boolean; since: string | null; code: string | null; message: string | null };
+}
+
 interface Diagnostics {
-  storage: { configured: boolean; mode: string };
+  storage: {
+    ready: boolean;
+    mode: 'blob' | 'local';
+    originals: 'private' | 'public' | 'none';
+    usage: StorageUsage;
+  };
   ai: { configured: boolean; model: string };
   worker: {
     enabled: boolean;
@@ -43,6 +67,24 @@ interface Diagnostics {
   timezone: string;
   recentErrors: RecentError[];
   version: string;
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
+}
+
+function originalsLabel(originals: 'private' | 'public' | 'none'): string {
+  if (originals === 'private') return 'Private store (recommended)';
+  if (originals === 'public') return 'Public store, unguessable URL';
+  return 'Not kept';
 }
 
 function isNextControlFlow(error: unknown): boolean {
@@ -145,6 +187,95 @@ export default async function DiagnosticsPage(): Promise<React.JSX.Element> {
             </div>
           </section>
 
+          <section className="panel" aria-labelledby="storage-heading">
+            <div className={styles.groupHead}>
+              <h2 id="storage-heading">Photo storage</h2>
+              {diagnostics ? (
+                <span
+                  className={
+                    diagnostics.storage.usage.exhausted || diagnostics.storage.usage.degraded.active
+                      ? 'badge badge--failed'
+                      : diagnostics.storage.ready
+                        ? 'badge badge--ok'
+                        : 'badge badge--muted'
+                  }
+                >
+                  {diagnostics.storage.usage.exhausted
+                    ? 'Uploads paused (quota)'
+                    : diagnostics.storage.usage.degraded.active
+                      ? 'Store failing'
+                      : diagnostics.storage.ready
+                        ? 'Ready'
+                        : 'Not configured'}
+                </span>
+              ) : null}
+            </div>
+
+            {diagnostics ? (
+              <>
+                <dl className="kv">
+                  <dt>Store</dt>
+                  <dd>
+                    {diagnostics.storage.mode === 'blob' ? 'Vercel Blob' : 'Local disk'}
+                    <span className={styles.cellMuted}>
+                      {' '}
+                      · {diagnostics.storage.ready ? 'configured' : 'missing token'}
+                    </span>
+                  </dd>
+                  <dt>Originals</dt>
+                  <dd>{originalsLabel(diagnostics.storage.originals)}</dd>
+                  <dt>Billing month</dt>
+                  <dd className={styles.mono}>{diagnostics.storage.usage.month}</dd>
+                  <dt>Storage used</dt>
+                  <dd>
+                    {formatBytes(diagnostics.storage.usage.bytes.total)} of{' '}
+                    {formatBytes(diagnostics.storage.usage.limits.softStorageBytes)} soft limit
+                  </dd>
+                  <dt>Published photos</dt>
+                  <dd>{formatBytes(diagnostics.storage.usage.bytes.published)}</dd>
+                  <dt>Pending uploads</dt>
+                  <dd>{formatBytes(diagnostics.storage.usage.bytes.pending)}</dd>
+                  <dt>Originals</dt>
+                  <dd>{formatBytes(diagnostics.storage.usage.bytes.originals)}</dd>
+                  <dt>Advanced ops</dt>
+                  <dd>
+                    {diagnostics.storage.usage.ops.advanced} of{' '}
+                    {diagnostics.storage.usage.limits.softAdvancedOps}
+                  </dd>
+                  <dt>Simple ops</dt>
+                  <dd>{diagnostics.storage.usage.ops.simple}</dd>
+                  <dt>Headroom</dt>
+                  <dd>
+                    {formatBytes(diagnostics.storage.usage.headroom.storageBytes)} ·{' '}
+                    {diagnostics.storage.usage.headroom.advancedOps} puts
+                  </dd>
+                </dl>
+
+                {diagnostics.storage.usage.degraded.active ? (
+                  <div
+                    className="alert alert--error"
+                    role="alert"
+                    style={{ marginTop: 'var(--space-3)' }}
+                  >
+                    <h3>Uploads are paused</h3>
+                    <p>
+                      The store rejected a write
+                      {diagnostics.storage.usage.degraded.message
+                        ? `: ${diagnostics.storage.usage.degraded.message}`
+                        : '.'}{' '}
+                      Text-only submissions keep working. Re-check after fixing the token or freeing
+                      space.
+                    </p>
+                  </div>
+                ) : null}
+
+                <StoragePanel
+                  preserveOriginals={diagnostics.storage.usage.limits.preserveOriginals}
+                />
+              </>
+            ) : null}
+          </section>
+
           <section className="panel" aria-labelledby="recent-errors-heading">
             <div className={styles.groupHead}>
               <h2 id="recent-errors-heading">Recent failed jobs</h2>
@@ -227,8 +358,11 @@ export default async function DiagnosticsPage(): Promise<React.JSX.Element> {
               <dl className="kv">
                 <dt>Storage</dt>
                 <dd>
-                  {diagnostics.storage.configured ? 'Configured' : 'Not configured'}
-                  <span className={styles.cellMuted}> · {diagnostics.storage.mode}</span>
+                  {diagnostics.storage.ready ? 'Configured' : 'Not configured'}
+                  <span className={styles.cellMuted}>
+                    {' '}
+                    · {diagnostics.storage.mode} · originals {diagnostics.storage.originals}
+                  </span>
                 </dd>
                 <dt>AI key</dt>
                 <dd>{diagnostics.ai.configured ? 'Configured' : 'Not configured'}</dd>

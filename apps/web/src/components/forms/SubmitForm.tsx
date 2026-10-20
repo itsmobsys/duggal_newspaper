@@ -510,6 +510,12 @@ export function SubmitForm({ settings, categories, timeZone }: SubmitFormProps):
           setFormError(
             'Photo storage is not configured on the server yet, so the photos cannot be uploaded. Remove them and file the text on its own — stories without photos still work.',
           );
+        } else if (error.code === 'STORAGE_QUOTA_EXHAUSTED' || error.code === 'STORAGE_DEGRADED') {
+          // The free Blob allowance is spent or the store is temporarily
+          // unavailable. Never let a photo problem cost the story itself.
+          setFormError(
+            `${error.message} Remove the photos and file the story as text — text-only filings always go through.`,
+          );
         } else {
           setFormError(
             `${error.message} Photos that finished are kept — press the button again to retry the rest.`,

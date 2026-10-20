@@ -1,9 +1,16 @@
 # ---------------------------------------------------------------------------
-# Render Blueprint - Duggal Badmosh Daily API (free tier)
+# Render Blueprint - Duggal Badmosh Daily API (free tier, Docker)
 #
-# One free web service runs the Fastify API (newsroom brain): submissions,
-# the AI pipeline, the queue worker, admin console API and photo storage.
-# The public website lives on Vercel and reads Turso directly.
+# One free Docker web service runs the Fastify API (newsroom brain):
+# submissions, the AI pipeline, the queue worker, admin console API and photo
+# storage. The public website lives on Vercel and reads Turso directly.
+#
+# Why Docker:
+#   - the same image runs locally (`docker run`), on Render, and anywhere else;
+#   - sharp/libvips and the Turso native client are pinned inside the image, so
+#     Render never has to guess a buildpack or a Node version;
+#   - the build is reproducible from the lockfile and the Dockerfile is the only
+#     deployment contract.
 #
 # Health check
 # ------------
@@ -30,18 +37,18 @@
 services:
   - type: web
     name: duggal-badmosh-api
-    runtime: node
+    runtime: docker
     plan: free
     region: singapore
-    rootDir: apps/api
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    # Build context is the repository root: the image also ships db/migrations.
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /healthz
     autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
-      # Render injects PORT; the API reads it automatically.
+      # Render injects PORT (usually 10000); the API reads it and binds 0.0.0.0.
       - key: HOST
         value: 0.0.0.0
       - key: LOG_LEVEL
@@ -96,21 +103,15 @@ services:
       - key: ADMIN_SESSION_TTL_HOURS
         value: "72"
 
-      # --- Photo storage (Cloudflare R2 / Backblaze B2 / Supabase) -----------
-      - key: S3_ENDPOINT
+      # --- Photo storage (Vercel Blob, Hobby plan) --------------------------
+      # Public store token: create a Blob store in Vercel and copy its
+      # read/write token here. Tokens stay server-side.
+      - key: BLOB_READ_WRITE_TOKEN
         sync: false
-      - key: S3_REGION
-        value: auto
-      - key: S3_BUCKET
+      # Optional private store for untouched originals (recommended: keeps
+      # EXIF/GPS out of any publicly reachable URL).
+      - key: BLOB_PRIVATE_READ_WRITE_TOKEN
         sync: false
-      - key: S3_ACCESS_KEY_ID
-        sync: false
-      - key: S3_SECRET_ACCESS_KEY
-        sync: false
-      - key: S3_PUBLIC_BASE_URL
-        sync: false
-      - key: S3_FORCE_PATH_STYLE
-        value: "false"
 
       # --- Submission limits -------------------------------------------------
       - key: MAX_UPLOAD_BYTES

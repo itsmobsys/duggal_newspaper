@@ -15,7 +15,16 @@ export interface ProcessedImage {
   thumbHeight: number;
   checksum: string;
   originalBytes: number;
+  /** Format detected from the bytes themselves, not from the upload header. */
+  format: 'jpeg' | 'png' | 'webp';
+  originalMime: string;
 }
+
+const ORIGINAL_MIME: Record<string, string> = {
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
 
 export interface ImageProcessOptions {
   maxDimension?: number;
@@ -107,6 +116,8 @@ export async function processImage(
     throw badRequest('Thumbnail could not be generated.', 'IMAGE_PROCESSING_FAILED');
   }
 
+  const format = metadata.format as 'jpeg' | 'png' | 'webp';
+
   return {
     full,
     thumb,
@@ -117,6 +128,8 @@ export async function processImage(
     thumbHeight: thumbInfo.height,
     checksum: createHash('sha256').update(buffer).digest('hex'),
     originalBytes: buffer.byteLength,
+    format,
+    originalMime: ORIGINAL_MIME[format] ?? 'application/octet-stream',
   };
 }
 
