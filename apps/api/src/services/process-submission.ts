@@ -71,12 +71,26 @@ export async function processSubmission(
   const duplicate = await findDuplicate(
     db,
     {
+      submissionId: submission.id,
       headline: submission.headline,
       story: submission.story,
       contentHash: heuristics.contentHash,
     },
     settings['moderation.duplicate_threshold'],
   );
+  if (duplicate.duplicateOf) {
+    log.info(
+      {
+        submissionId: submission.id,
+        duplicateOf: duplicate.duplicateOf,
+        matchedOn: duplicate.matchedOn,
+        duplicateScore: duplicate.duplicateScore,
+        storyScore: duplicate.storyScore,
+        headlineScore: duplicate.headlineScore,
+      },
+      'Duplicate check matched an earlier submission',
+    );
+  }
 
   const visionImages = await buildVisionImages(images, settings, log);
   const anonymous = submission.anonymous === 1 || submission.identity_mode === 'anonymous';
