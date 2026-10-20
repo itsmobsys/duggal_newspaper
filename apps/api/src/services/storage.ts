@@ -117,15 +117,21 @@ export class BlobDriver implements StorageDriver {
       // private one is a legal setup. Adopt the store's real access mode instead
       // of failing every photo upload, and serve the photos through the media
       // proxy (a private Blob URL cannot be loaded by a browser).
-      if (this.access === 'public' && isPrivateStoreError(error)) {
-        this.access = 'private';
+      //
+      // An upload writes the full image and the thumbnail concurrently, so the
+      // first rejection can flip the access mode while a sibling write is still
+      // in flight. Retry on the rejection itself rather than on the current mode,
+      // otherwise the losing write rethrows and the whole upload fails.
+      if (!isPrivateStoreError(error)) throw error;
+      const adopting = this.access !== 'private';
+      this.access = 'private';
+      if (adopting) {
         logger.warn(
           { key, store: 'private' },
           'Blob store is private; writing photos with private access and serving them through /media',
         );
-        return this.write(key, body, options);
       }
-      throw error;
+      return this.write(key, body, options);
     }
   }
 

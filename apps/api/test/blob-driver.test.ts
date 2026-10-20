@@ -54,6 +54,37 @@ describe('BlobDriver access mode', () => {
     expect(stored.url).toBe('https://store.private.blob.vercel-storage.com/uploads/photos/a.webp');
   });
 
+  it('retries both writes when concurrent uploads race the access-mode switch', async () => {
+    // Both writes leave the driver while it still believes the store is public,
+    // so both are rejected. The second catch already sees access=private; it must
+    // still retry, or the thumbnail write fails and takes the upload down with it.
+    putMock.mockImplementation((async (
+      key: string,
+      _body: Buffer,
+      options: { access?: string },
+    ) => {
+      if (options?.access !== 'private') throw new Error(PRIVATE_REJECTION);
+      return {
+        url: `https://store.private.blob.vercel-storage.com/${key}`,
+        pathname: key,
+        contentType: 'image/webp',
+      };
+    }) as never);
+
+    const driver = new BlobDriver('blob-token', 'public');
+    const [full, thumb] = await Promise.all([
+      driver.put('uploads/photos/a.webp', Buffer.from('pixels'), { contentType: 'image/webp' }),
+      driver.put('uploads/photos/a-thumb.webp', Buffer.from('thumb'), {
+        contentType: 'image/webp',
+      }),
+    ]);
+
+    expect(putMock).toHaveBeenCalledTimes(4);
+    expect(full.store).toBe('private');
+    expect(thumb.store).toBe('private');
+    expect(driver.store).toBe('private');
+  });
+
   it('does not retry unrelated write failures', async () => {
     putMock.mockRejectedValueOnce(new Error('Vercel Blob: quota exceeded for this store'));
 
