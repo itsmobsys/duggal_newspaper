@@ -1,6 +1,7 @@
 # Contributing
 
 Thanks for helping the paper. A few rules keep it free, honest and maintainable.
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Ground rules
 
@@ -39,8 +40,11 @@ Before opening a pull request:
 npm run verify
 ```
 
-That runs typecheck, lint, the API tests and both production builds. Formatting
-is enforced with Prettier (`npm run format`).
+That runs the Prettier check, typecheck, lint, the API tests and both production
+builds. If Prettier complains, run `npm run format` before you push.
+
+GitHub Actions runs the same checks on every pull request: format, typecheck,
+lint, tests and both builds. A pull request with a red run is not ready to merge.
 
 ## Tests
 
@@ -77,9 +81,12 @@ docs: explain the 11 PM edition build
 ## Security
 
 - Do not open a public issue containing an exploit or a secret.
-- Report privately via the Discord configured in `site.contact_discord`.
-- Changes touching auth, uploads, the BFF, HMAC signing or rate limits need a
-  short threat-model note in the pull request.
+- Report privately through GitHub Security Advisories, as described in
+  [SECURITY.md](SECURITY.md). Never paste a live key, session cookie or upload
+  ticket into an issue, a pull request or a commit.
+- Changes touching auth, uploads, the BFF, HMAC signing, rate limits or the
+  database need a short threat-model note in the pull request: what an attacker
+  gains if the change is wrong, and which test covers it.
 
 ## Licence
 

@@ -18,7 +18,7 @@ Built for a Discord community. Runs on free tiers. MIT licensed.
 | --- | --- |
 | **Website submissions** | Headline, story, author, optional Discord handle, up to 4 photos, category, source link, anonymity. No Discord bot and no OAuth required. |
 | **AI newsroom** | Supplied by NVIDIA Nemotron (`nvidia/nemotron-3.5-super-vl-120b-a12b`). Rewrites copy, writes headlines, deks and tags, picks a category, and spots spam. |
-| **Autonomy** | Routine stories publish themselves. Unsupported allegations, private data and dangerous instructions are held for a human. Nothing is silently dropped. |
+| **Autonomy** | Routine stories publish themselves. Only concrete abuse and illegal content is held for a human: credible threats, weapon/explosive/drug/self-harm instructions, private personal data, minors or non-consensual sexual content, protected-group slurs, and active fraud or phishing. Tone, profanity, gossip, sarcasm, roasts, opinions and unverified allegations are **not** holds. Nothing is silently dropped. |
 | **Daily editions** | The AI starts assembling tomorrow's edition at **23:00 IST**; it is live at **00:00 IST**. A deterministic fallback layout is used if the AI is unavailable. |
 | **Reading experience** | Dynamic front page, breaking ticker, categories, article pages, photo desk, search, tags, archives, editions, awards, corrections, RSS, sitemap and Open Graph images. New stories appear without a redeploy. |
 | **Admin console** | Moderation queue, article editor, corrections, job retries, settings, AI diagnostics, audit log, and the kill switch. |
@@ -63,7 +63,7 @@ worker in-process **and** from an external cron at the same time.
 | --- | --- |
 | **00:00** | The front page rolls over to the edition dated today. Stories are tagged with the edition they will be *read* in. |
 | **Every 20s** | In-process worker tick on Render (`WORKER_ENABLED=true`). |
-| **Every 5 min** | GitHub Actions calls `POST/GET /internal/worker/tick` as a safety net, and keeps the free Render instance warm. |
+| **Every 5 min** | GitHub Actions calls `POST /internal/worker/tick` as a safety net, and keeps the free Render instance warm. |
 | **Hourly** | Expired upload tickets and orphaned photos are cleaned up. |
 | **06:00** | Daily recovery: submissions whose AI processing exhausted its attempts are requeued. |
 | **Monday ≥12:00** | Weekly awards are generated (configurable weekday). |
@@ -97,7 +97,12 @@ membership is by the date the paper is read, not the minute it was written.
 │     └─ src/components/    design-system components, forms, admin UI
 ├─ db/migrations/           SQL schema (applied on API startup)
 ├─ render.yaml              Render Blueprint (health check = /healthz)
-├─ .github/workflows/       five-minute worker tick
+├─ .github/workflows/       CI (format, typecheck, lint, tests, builds) + five-minute worker tick
+├─ .github/ISSUE_TEMPLATE/  bug and feature request forms
+├─ .github/pull_request_template.md
+├─ CONTRIBUTING.md          contribution rules and local setup
+├─ CODE_OF_CONDUCT.md       community standards and enforcement
+├─ SECURITY.md              private vulnerability reporting
 └─ package.json             root scripts (no workspaces)
 ```
 
@@ -107,7 +112,7 @@ membership is by the date the paper is read, not the minute it was written.
 
 ### Prerequisites
 
-- Node.js **20.11+**
+- Node.js **20.11+** (Node 22 LTS recommended; the production image uses Node 22)
 - npm 10+
 - No Docker, no Redis, no Postgres.
 
@@ -221,8 +226,8 @@ Open <http://localhost:3000> and <http://localhost:3000/admin>.
 | `WORKER_TICK_TOKEN` | yes | Shared with GitHub Actions (≥24 chars) |
 | `SESSION_PEPPER` | yes | Admin session hashing (≥24 chars) |
 | `ADMIN_SESSION_TTL_HOURS` | no | Default 72 |
-| `BLOB_READ_WRITE_TOKEN` | prod | Vercel Blob public store token |
-| `BLOB_PRIVATE_READ_WRITE_TOKEN` | no | Private store for originals (recommended) |
+| `BLOB_READ_WRITE_TOKEN` | prod | Vercel Blob store token. Public and private stores both work; a private store is detected automatically and photos are served through `GET /media/*`. |
+| `BLOB_PRIVATE_READ_WRITE_TOKEN` | no | Separate private store for originals (recommended; otherwise originals go to the main store) |
 | `BLOB_CACHE_MAX_AGE_SECONDS` | no | Default 31536000 (one year) |
 | `MAX_UPLOAD_BYTES` | no | Per photo, default 8 MiB |
 | `MAX_IMAGES_PER_SUBMISSION` | no | Default 4 |
@@ -575,7 +580,8 @@ Vercel Blob token. Nothing here requires a paid plan to run locally.
 ## Security model
 
 - The Render API is **closed** to direct browser calls except `PUT /public/uploads/:id`
-  (bearer ticket) and the read-only `/media/*` local fallback.
+  (bearer ticket) and the read-only `/media/*` route (local disk in development,
+  proxied private Blob reads in production).
 - Every other request is signed by the Next.js BFF with HMAC-SHA256 over
   `timestamp \n METHOD \n pathWithQuery \n sha256(body)`. Requests older than
   the allowed window are rejected.
@@ -595,7 +601,8 @@ Vercel Blob token. Nothing here requires a paid plan to run locally.
   gitignored. `.env.example` contains no real values.
 
 If you find a security issue, please do not open a public issue with an exploit.
-Contact the maintainers privately via the Discord in `site.contact_discord`.
+Report it privately through [GitHub Security Advisories](https://github.com/itsmobsys/duggal_newspaper/security/advisories/new)
+or as described in [SECURITY.md](SECURITY.md).
 
 ---
 
@@ -609,7 +616,9 @@ runs typecheck, lint, the API test suite and both production builds. The suite
 covers the queue (leases, backoff, idempotency), moderation, edition scheduling
 (including the 23:00 IST build), uploads, and the public/admin route contracts.
 
-Formatting is enforced with Prettier; ESLint runs with `--max-warnings=0`.
+Formatting is enforced with Prettier (`npm run format:check`); ESLint runs with
+`--max-warnings=0`. The same checks run in GitHub Actions on every push and pull
+request, so a contributor finds out before a maintainer has to look.
 
 ---
 
@@ -669,6 +678,12 @@ It usually succeeded. Verify with `git status -sb` or `git ls-remote`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Keep it free, keep it honest, and do not
 add a dependency that could be twelve lines of code.
+
+- Bug reports and feature requests: use the issue templates.
+- Pull requests: describe the change, link the issue, and say which tests cover
+  it. CI must be green; `npm run verify` is the same gate locally.
+- Security issues: never a public issue. Use [SECURITY.md](SECURITY.md).
+- Behave like a person. [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) applies.
 
 ## License
 

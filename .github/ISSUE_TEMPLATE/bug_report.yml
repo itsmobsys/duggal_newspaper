@@ -1,0 +1,54 @@
+name: Bug report
+description: Something is broken in the newspaper, the API or the admin console.
+title: 'bug: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do **not** paste secrets, API keys, `.env` contents or private
+        personal data. For security issues use [SECURITY.md](../blob/main/SECURITY.md)
+        instead of a public issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open /submit
+        2. Attach a JPEG and submit
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Website (public pages)
+        - Submission form / photo upload
+        - API / queue / worker
+        - AI rewriting or moderation
+        - Editions, awards, corrections
+        - Admin console
+        - Deployment (Render / Vercel / Turso / Blob)
+        - Documentation
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or version
+      description: The commit hash, or the date you saw the problem.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Error messages or logs with secrets removed. Do not include stack traces containing tokens.
+      render: shell

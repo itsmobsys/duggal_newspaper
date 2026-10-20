@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/itsmobsys/duggal_newspaper/security/advisories/new
+    about: Report vulnerabilities privately. Never open a public issue with an exploit or a secret.
+  - name: Setup and deployment help
+    url: https://github.com/itsmobsys/duggal_newspaper/blob/main/README.md
+    about: The README covers local setup, Render, Vercel, Turso and Vercel Blob.

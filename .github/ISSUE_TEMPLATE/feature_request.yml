@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest a change to the paper, the newsroom or the tooling.
+title: 'feat: '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project runs entirely on free tiers. Features that require a paid
+        plan, a paid API or a new paid dependency cannot be accepted.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: Describe the reader or editor problem, not only the proposed implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This works on free tiers (Vercel Hobby, Render Free, Turso Free, Vercel Blob Hobby).
+          required: true
+        - label: This does not change the fixed NVIDIA model or add a silent fallback.
+          required: true
+        - label: This does not weaken authentication, input validation, upload limits or secret handling.
+          required: true

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API (Fastify)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Install
+        run: npm ci --prefix apps/api
+      - name: Format check
+        run: npm --prefix apps/api run format:check
+      - name: Typecheck
+        run: npm --prefix apps/api run typecheck
+      - name: Lint
+        run: npm --prefix apps/api run lint
+      - name: Test
+        run: npm --prefix apps/api run test
+      - name: Build
+        run: npm --prefix apps/api run build
+
+  web:
+    name: Web (Next.js)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install
+        run: npm ci --prefix apps/web
+      - name: Format check
+        run: npm --prefix apps/web run format:check
+      - name: Typecheck
+        run: npm --prefix apps/web run typecheck
+      - name: Lint
+        run: npm --prefix apps/web run lint
+      - name: Build
+        run: npm --prefix apps/web run build
