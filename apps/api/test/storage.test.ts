@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { config } from '../src/config.js';
 import { createDb, type Db } from '../src/db/client.js';
 import { runMigrations } from '../src/db/migrate.js';
 import { AppError } from '../src/lib/errors.js';
@@ -71,6 +72,7 @@ let dir: string;
 let db: Db;
 let publicStore: FakeDriver;
 let privateStore: FakeDriver;
+const ambientStorageConfigured = config.storage.configured;
 
 function originalsTarget(driver: FakeDriver): OriginalsTarget {
   return { driver, access: 'private', addRandomSuffix: false };
@@ -84,6 +86,7 @@ beforeAll(async () => {
 
 afterAll(() => {
   resetStorageForTests();
+  config.storage.configured = ambientStorageConfigured;
   db.client.close();
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -99,6 +102,9 @@ beforeEach(async () => {
   await db.run('DELETE FROM storage_usage');
   await db.run('DELETE FROM audit_logs');
   clearStorageDegraded();
+  // Storage tests must not depend on the ambient .env: CI has no Blob token and
+  // no ALLOW_LOCAL_STORAGE, which would otherwise make storage look unconfigured.
+  config.storage.configured = true;
 
   publicStore = new FakeDriver('public');
   privateStore = new FakeDriver('private');
