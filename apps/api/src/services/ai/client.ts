@@ -32,11 +32,50 @@ export interface ChatJsonOptions<T extends z.ZodTypeAny> {
   schema: T;
   maxTokens?: number;
   temperature?: number;
+  /** Overrides AI_MAX_ATTEMPTS, for probes that must answer fast. */
+  maxAttempts?: number;
   onUsage?: UsageSink;
   timeoutMs?: number;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Hard ceiling for a single completion (reasoning + answer). */
+const MAX_COMPLETION_TOKENS = 16_384;
+
+/**
+ * Removes anything that looks like a credential before text reaches a log line.
+ * Upstream error bodies and messages are untrusted.
+ */
+export function redactSecrets(input: string): string {
+  return input
+    .replace(/nvapi-[A-Za-z0-9_-]+/gi, 'nvapi-[redacted]')
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+    .replace(
+      /("?(?:api[_-]?key|authorization|access[_-]?token|token|secret)"?\s*[:=]\s*"?)([^",}\s]+)/gi,
+      '$1[redacted]',
+    );
+}
+
+/** Single-line, redacted, bounded preview of an upstream body. */
+export function sanitizeUpstreamBody(body: string, maxLength = 500): string {
+  return redactSecrets(body.replace(/\s+/g, ' ').trim()).slice(0, maxLength);
+}
+
+/** Non-sensitive facts about one completed request, safe to log. */
+export interface CompletionDiagnostics {
+  purpose: string;
+  model: string;
+  httpStatus: number | null;
+  durationMs: number;
+  choices: number;
+  finishReason: string | null;
+  contentLength: number;
+  reasoningLength: number;
+  completionTokens: number | null;
+  reasoningTokens: number | null;
+  truncated: boolean;
+}
 
 /** Sliding-window client-side limiter so we never hammer the free tier. */
 const requestTimestamps: number[] = [];
@@ -156,6 +195,8 @@ interface RawCallResult {
     prompt_tokens?: number;
     completion_tokens?: number;
     total_tokens?: number;
+    reasoning_tokens?: number;
+    completion_tokens_details?: { reasoning_tokens?: number };
   } | null;
   durationMs: number;
 }
@@ -165,6 +206,7 @@ interface CallState {
 }
 
 async function rawCall(input: {
+  purpose: string;
   system: string;
   user: string;
   images: AiImageInput[];
@@ -230,13 +272,21 @@ async function rawCall(input: {
   } catch (error) {
     const isTimeout =
       error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
-    throw new AiUnavailableError(
-      isTimeout
-        ? `NVIDIA API timed out after ${input.timeoutMs}ms.`
-        : `NVIDIA API network error: ${error instanceof Error ? error.message : String(error)}`,
-      isTimeout ? 'AI_TIMEOUT' : 'AI_NETWORK',
-      true,
+    const message = isTimeout
+      ? `NVIDIA API timed out after ${input.timeoutMs}ms.`
+      : `NVIDIA API network error: ${error instanceof Error ? error.message : String(error)}`;
+    logger.warn(
+      {
+        purpose: input.purpose,
+        model: config.ai.model,
+        httpStatus: null,
+        durationMs: Date.now() - startedAt,
+        errorCode: isTimeout ? 'AI_TIMEOUT' : 'AI_NETWORK',
+        error: redactSecrets(message),
+      },
+      'NVIDIA API transport failure',
     );
+    throw new AiUnavailableError(message, isTimeout ? 'AI_TIMEOUT' : 'AI_NETWORK', true);
   }
 
   const durationMs = Date.now() - startedAt;
@@ -279,6 +329,17 @@ async function rawCall(input: {
     (error as AiUnavailableError & { retryAfterMs?: number }).retryAfterMs =
       retryAfterMs(response.headers) ?? undefined;
     (error as AiUnavailableError & { durationMs?: number }).durationMs = durationMs;
+    logger.warn(
+      {
+        purpose: input.purpose,
+        model: config.ai.model,
+        httpStatus: response.status,
+        durationMs,
+        errorCode: code,
+        upstreamBody: sanitizeUpstreamBody(text),
+      },
+      'NVIDIA API request failed',
+    );
     throw error;
   }
 
@@ -286,6 +347,17 @@ async function rawCall(input: {
   try {
     data = JSON.parse(text);
   } catch {
+    logger.warn(
+      {
+        purpose: input.purpose,
+        model: config.ai.model,
+        httpStatus: response.status,
+        durationMs,
+        errorCode: 'AI_BAD_ENVELOPE',
+        upstreamBody: sanitizeUpstreamBody(text),
+      },
+      'NVIDIA API returned a non-JSON envelope',
+    );
     throw new AiUnavailableError(
       'NVIDIA API returned a non-JSON envelope.',
       'AI_BAD_ENVELOPE',
@@ -295,24 +367,88 @@ async function rawCall(input: {
 
   const envelope = data as {
     error?: { message?: string };
-    choices?: Array<{ message?: { content?: unknown } }>;
+    choices?: Array<{
+      finish_reason?: string;
+      message?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown };
+    }>;
     usage?: RawCallResult['usage'];
   };
 
   if (envelope.error) {
+    const message = envelope.error.message ?? 'unknown';
+    logger.warn(
+      {
+        purpose: input.purpose,
+        model: config.ai.model,
+        httpStatus: response.status,
+        durationMs,
+        errorCode: 'AI_API_ERROR',
+        upstreamBody: sanitizeUpstreamBody(message),
+      },
+      'NVIDIA API returned an error envelope',
+    );
+    throw new AiUnavailableError(`NVIDIA API error: ${message}`, 'AI_API_ERROR', true);
+  }
+
+  const choice = envelope.choices?.[0];
+  const rawContent = contentToText(choice?.message?.content);
+  const reasoning = contentToText(choice?.message?.reasoning_content ?? choice?.message?.reasoning);
+  const content = rawContent.trim();
+  const finishReason = typeof choice?.finish_reason === 'string' ? choice.finish_reason : null;
+  const usage = envelope.usage ?? null;
+  const reasoningTokens =
+    usage?.completion_tokens_details?.reasoning_tokens ?? usage?.reasoning_tokens ?? null;
+
+  const diagnostics: CompletionDiagnostics = {
+    purpose: input.purpose,
+    model: config.ai.model,
+    httpStatus: response.status,
+    durationMs,
+    choices: envelope.choices?.length ?? 0,
+    finishReason,
+    contentLength: rawContent.length,
+    reasoningLength: reasoning.length,
+    completionTokens: usage?.completion_tokens ?? null,
+    reasoningTokens,
+    truncated: finishReason === 'length',
+  };
+
+  if (diagnostics.truncated) {
+    logger.warn(
+      { ...diagnostics, contentPreview: sanitizeUpstreamBody(content, 120) },
+      'NVIDIA completion hit the token limit',
+    );
+  } else if (!content) {
+    logger.warn(diagnostics, 'NVIDIA completion was empty');
+  } else {
+    logger.info(diagnostics, 'NVIDIA completion received');
+  }
+
+  if (!envelope.choices || envelope.choices.length === 0) {
     throw new AiUnavailableError(
-      `NVIDIA API error: ${envelope.error.message ?? 'unknown'}`,
-      'AI_API_ERROR',
+      `NVIDIA API returned no choices (finish_reason: ${finishReason ?? 'none'}).`,
+      'AI_BAD_ENVELOPE',
       true,
     );
   }
 
-  const content = contentToText(envelope.choices?.[0]?.message?.content).trim();
+  if (finishReason === 'length') {
+    // Reasoning models can spend the whole completion budget thinking, leaving
+    // no room for the answer. Retrying with the same budget always fails, so
+    // surface a dedicated code that chatJson answers with a larger budget.
+    throw new AiUnavailableError(
+      `NVIDIA stopped at the ${input.maxTokens}-token completion limit before finishing the answer` +
+        ` (${reasoningTokens ?? 'unknown'} reasoning tokens, ${content.length} answer chars).`,
+      'AI_TRUNCATED',
+      true,
+    );
+  }
+
   if (!content) {
     throw new AiUnavailableError('NVIDIA API returned an empty completion.', 'AI_EMPTY', true);
   }
 
-  return { content, usage: envelope.usage ?? null, durationMs };
+  return { content, usage, durationMs };
 }
 
 /**
@@ -323,9 +459,15 @@ async function rawCall(input: {
 export async function chatJson<T extends z.ZodTypeAny>(
   options: ChatJsonOptions<T>,
 ): Promise<{ data: z.infer<T>; raw: string; attempts: number; usage: AiUsageEvent }> {
-  const maxAttempts = config.ai.maxAttempts;
+  const maxAttempts = Math.max(1, options.maxAttempts ?? config.ai.maxAttempts);
   const images = options.images ?? [];
-  const maxTokens = options.maxTokens ?? config.ai.maxTokens;
+  // AI_MAX_TOKENS is the answer budget. This model also bills reasoning against
+  // the completion window, so the request budget is answer + reasoning headroom.
+  let maxTokens = Math.min(
+    MAX_COMPLETION_TOKENS,
+    (options.maxTokens ?? config.ai.maxTokens) + config.ai.reasoningHeadroomTokens,
+  );
+  let budgetEscalations = 0;
   const temperature = options.temperature ?? config.ai.temperature;
   const timeoutMs = options.timeoutMs ?? config.ai.timeoutMs;
 
@@ -343,6 +485,7 @@ export async function chatJson<T extends z.ZodTypeAny>(
     try {
       await acquireSlot();
       const result = await rawCall({
+        purpose: options.purpose,
         system: options.system,
         user: options.user,
         images,
@@ -416,6 +559,28 @@ export async function chatJson<T extends z.ZodTypeAny>(
         );
         attempt -= 1;
         continue;
+      }
+
+      if (error instanceof AiUnavailableError && error.code === 'AI_TRUNCATED') {
+        // Reasoning ran past the completion budget. Retrying unchanged is futile,
+        // so raise the budget instead of burning an attempt on the same request.
+        const nextTokens = Math.min(MAX_COMPLETION_TOKENS, Math.ceil(maxTokens * 1.75));
+        if (budgetEscalations < 2 && nextTokens > maxTokens) {
+          budgetEscalations += 1;
+          logger.warn(
+            {
+              purpose: options.purpose,
+              attempt,
+              previousMaxTokens: maxTokens,
+              nextMaxTokens: nextTokens,
+            },
+            'NVIDIA completion truncated; retrying with a larger budget',
+          );
+          maxTokens = nextTokens;
+          attempt -= 1;
+          continue;
+        }
+        break;
       }
 
       if (error instanceof AiUnavailableError && !error.retryable) {

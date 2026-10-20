@@ -1292,6 +1292,10 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
         schema: z.object({ ok: z.boolean(), message: z.string() }),
         maxTokens: 100,
         temperature: 0,
+        // This is a latency probe from a serverless proxy: fail fast with a
+        // clear AI_TIMEOUT instead of hanging for the full worker budget.
+        timeoutMs: 40_000,
+        maxAttempts: 1,
       });
       await writeAudit(db, {
         actor: adminId(ctx),

@@ -214,7 +214,8 @@ Open <http://localhost:3000> and <http://localhost:3000/admin>.
 | `AI_MAX_RPM` | no | Client-side rate cap (default 28) |
 | `AI_TIMEOUT_MS` | no | Default 180000 |
 | `AI_MAX_ATTEMPTS` | no | Default 5 |
-| `AI_TEMPERATURE` / `AI_MAX_TOKENS` | no | Defaults 0.9 / 2600 |
+| `AI_TEMPERATURE` / `AI_MAX_TOKENS` | no | Defaults 0.9 / 2600 (answer budget) |
+| `AI_REASONING_HEADROOM_TOKENS` | no | Default 6000. Added to `AI_MAX_TOKENS` because Nemotron spends completion tokens on reasoning before writing the answer. |
 | `AI_JSON_MODE` / `AI_VISION` | no | Defaults `true` |
 | `SERVICE_SECRET` | yes | HMAC shared with Vercel (≥24 chars) |
 | `WORKER_TICK_TOKEN` | yes | Shared with GitHub Actions (≥24 chars) |

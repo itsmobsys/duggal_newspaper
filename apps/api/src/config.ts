@@ -51,6 +51,10 @@ const rawSchema = z.object({
   AI_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(8).default(5),
   AI_TEMPERATURE: z.coerce.number().min(0).max(1.5).default(0.9),
   AI_MAX_TOKENS: z.coerce.number().int().min(256).max(8192).default(2600),
+  // Nemotron is a reasoning model: it spends completion tokens thinking before
+  // it writes the answer. This headroom is added to AI_MAX_TOKENS so the
+  // answer budget is not eaten by reasoning tokens (which yields empty content).
+  AI_REASONING_HEADROOM_TOKENS: z.coerce.number().int().min(0).max(16_000).default(6000),
   AI_JSON_MODE: z
     .enum(['true', 'false'])
     .default('true')
@@ -187,6 +191,7 @@ export interface AppConfig {
     maxAttempts: number;
     temperature: number;
     maxTokens: number;
+    reasoningHeadroomTokens: number;
     jsonMode: boolean;
     vision: boolean;
     visionMaxImages: number;
@@ -250,6 +255,7 @@ export const config: AppConfig = {
     maxAttempts: raw.AI_MAX_ATTEMPTS,
     temperature: raw.AI_TEMPERATURE,
     maxTokens: raw.AI_MAX_TOKENS,
+    reasoningHeadroomTokens: raw.AI_REASONING_HEADROOM_TOKENS,
     jsonMode: raw.AI_JSON_MODE,
     vision: raw.AI_VISION,
     visionMaxImages: raw.AI_VISION_MAX_IMAGES,

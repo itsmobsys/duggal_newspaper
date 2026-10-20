@@ -5,6 +5,12 @@ import { getAdminSession } from '@/lib/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// The AI probe can legitimately take tens of seconds. Allow the platform's
+// Hobby maximum so the 20s default proxy timeout is not the bottleneck.
+export const maxDuration = 60;
+
+const SLOW_ADMIN_PATHS = new Set(['ai/test']);
+const SLOW_TIMEOUT_MS = 55_000;
 
 /**
  * The only path from the admin UI to the newsroom API.
@@ -90,6 +96,7 @@ async function proxy(request: NextRequest, context: RouteContext): Promise<NextR
       rawBody: rawBody || undefined,
       adminSession: session,
       clientIp: clientIpFrom(request),
+      timeoutMs: SLOW_ADMIN_PATHS.has(segments.join('/')) ? SLOW_TIMEOUT_MS : undefined,
     });
     if (result === null || result === undefined) {
       return new NextResponse(null, { status: 204, headers: { 'cache-control': 'no-store' } });
