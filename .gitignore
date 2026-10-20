@@ -1,0 +1,52 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# database (local development)
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# local object storage fallback
+.storage/
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# test output
+coverage/
+.vitest/
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# misc
+.vercel
+render.yaml.bak

@@ -1,0 +1,28 @@
+{
+  "name": "duggal-badmosh-daily",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Duggal Badmosh Daily Newspaper - community-submitted, AI-rewritten, deeply unserious news.",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "setup": "npm --prefix apps/api install && npm --prefix apps/web install",
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build": "npm --prefix apps/api run build && npm --prefix apps/web run build",
+    "build:api": "npm --prefix apps/api run build",
+    "build:web": "npm --prefix apps/web run build",
+    "typecheck": "npm --prefix apps/api run typecheck && npm --prefix apps/web run typecheck",
+    "lint": "npm --prefix apps/api run lint && npm --prefix apps/web run lint",
+    "format": "npm --prefix apps/api run format && npm --prefix apps/web run format",
+    "format:check": "npm --prefix apps/api run format:check && npm --prefix apps/web run format:check",
+    "test": "npm --prefix apps/api run test",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "db:migrate": "npm --prefix apps/api run db:migrate",
+    "db:seed": "npm --prefix apps/api run db:seed",
+    "db:reset": "npm --prefix apps/api run db:reset",
+    "admin:create": "npm --prefix apps/api run admin:create",
+    "worker:tick": "npm --prefix apps/api run worker:tick"
+  }
+}
