@@ -20,11 +20,15 @@ import {
   type StoredObject,
 } from '../src/services/storage.js';
 import {
+  assertUploadsAllowed,
   classifyBlobError,
   clearStorageDegraded,
   getStorageDegraded,
   getStorageUsage,
+  markStorageDegraded,
   recordAdvancedOps,
+  STORAGE_DEGRADED_COOLDOWN_MS,
+  STORAGE_DEGRADED_ERROR,
 } from '../src/services/storage-usage.js';
 import { pruneOriginals } from '../src/services/storage-maintenance.js';
 import { createUploadTickets, storeUpload } from '../src/services/uploads.js';
@@ -418,5 +422,32 @@ describe('pruneOriginals', () => {
     expect(result.reason).toBe('capacity');
     expect(result.pruned).toBe(1);
     expect(privateStore.deletes).toEqual(['articles/originals/fresh.jpg']);
+  });
+});
+
+describe('photo intake after a storage failure', () => {
+  it('parks intake, then retries on its own once the cooldown passes', async () => {
+    await markStorageDegraded(db, { code: 'auth', message: 'Blob said no' });
+
+    await expect(assertUploadsAllowed(db)).rejects.toMatchObject({
+      statusCode: 503,
+      code: STORAGE_DEGRADED_ERROR,
+    });
+
+    const later = Date.now() + STORAGE_DEGRADED_COOLDOWN_MS + 1;
+    const usage = await getStorageUsage(db, undefined, later);
+    expect(usage.reason).toBeNull();
+    expect(usage.degraded.active).toBe(false);
+
+    await expect(assertUploadsAllowed(db)).resolves.toMatchObject({ exhausted: false });
+  });
+
+  it('keeps the latch while the cooldown is still running', async () => {
+    await markStorageDegraded(db, { code: 'auth', message: 'Blob said no' });
+
+    const soon = Date.now() + 1_000;
+    const usage = await getStorageUsage(db, undefined, soon);
+    expect(usage.reason).toBe('degraded');
+    expect(usage.degraded.active).toBe(true);
   });
 });

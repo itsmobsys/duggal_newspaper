@@ -36,6 +36,9 @@ export const BLOB_HOBBY_PLAN = {
 export const STORAGE_QUOTA_ERROR = 'STORAGE_QUOTA_EXHAUSTED';
 export const STORAGE_DEGRADED_ERROR = 'STORAGE_DEGRADED';
 
+/** How long a failed photo write parks intake before we try the store again. */
+export const STORAGE_DEGRADED_COOLDOWN_MS = 5 * 60_000;
+
 export function currentMonth(date = new Date()): string {
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -99,7 +102,16 @@ export interface DegradedState {
 let degraded: DegradedState = { active: false, since: null, code: null, message: null };
 let lastDegradedLogAt = 0;
 
-export function getStorageDegraded(): DegradedState {
+export function getStorageDegraded(now = Date.now()): DegradedState {
+  // A rejection parks photo intake, but it must not park it forever: one
+  // transient Blob error would otherwise block every upload until an admin
+  // clicks Re-check. Retry on our own after the cooldown.
+  if (degraded.active && degraded.since) {
+    const since = Date.parse(degraded.since);
+    if (Number.isFinite(since) && now - since >= STORAGE_DEGRADED_COOLDOWN_MS) {
+      return clearStorageDegraded();
+    }
+  }
   return { ...degraded };
 }
 
@@ -222,7 +234,11 @@ interface SumRow {
   originals: number | null;
 }
 
-export async function getStorageUsage(db: Db, settings?: Settings): Promise<StorageUsage> {
+export async function getStorageUsage(
+  db: Db,
+  settings?: Settings,
+  now = Date.now(),
+): Promise<StorageUsage> {
   const policy = resolveStoragePolicy(settings ?? (await loadSettings(db)));
 
   const published = await db.get<SumRow>(
@@ -252,7 +268,7 @@ export async function getStorageUsage(db: Db, settings?: Settings): Promise<Stor
   const originalBytes = (published?.originals ?? 0) + (pending?.originals ?? 0);
   const total = publishedBytes + pendingBytes;
 
-  const state = getStorageDegraded();
+  const state = getStorageDegraded(now);
   const overStorage = total >= policy.softStorageBytes;
   const overOps = (counters?.advanced_ops ?? 0) >= policy.softAdvancedOps;
   const reason: StorageUsage['reason'] = state.active

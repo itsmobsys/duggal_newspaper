@@ -627,6 +627,12 @@ failing halfway. Text submissions keep working. Free space in **Admin →
 Diagnostics → Storage → Prune originals**, raise `storage.soft_limit_mb`, or wait
 for next month's reset.
 
+**Photos return 503 `STORAGE_DEGRADED`.**
+A photo write just failed, so the API pauses photo intake for five minutes
+instead of hammering a store that is unhappy. The pause clears itself; admins
+can also hit **Admin → Diagnostics → Storage → Re-check** to retry immediately.
+Text submissions are unaffected.
+
 **`/readyz` says degraded but the site works.**
 That is intentional: missing AI or storage is a degraded capability, not a dead
 service. `/healthz` stays 200 while the process is alive.
