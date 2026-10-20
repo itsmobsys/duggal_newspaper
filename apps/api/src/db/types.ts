@@ -31,6 +31,10 @@ export interface SubmissionRow {
   article_id: string | null;
   member_id: string | null;
   processed_at: string | null;
+  editor_override_at: string | null;
+  editor_override_by: string | null;
+  editor_override_note: string | null;
+  editor_override_reasons: string | null;
   created_at: string;
   updated_at: string;
 }

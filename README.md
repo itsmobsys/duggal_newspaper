@@ -503,7 +503,11 @@ enforces this structurally:
 | `WORKER_ENABLED=false` (Render) | Stops the in-process tick; external cron still works |
 
 The admin can also unpublish or delete an article, reject a submission, and
-request or publish a correction.
+request or publish a correction. When the desk flags a story that a human wants
+anyway, **Clear flags & rewrite** on the submission page waives those specific
+flags, records them in the audit log, and asks the AI to rewrite the story with
+them treated as already reviewed. Text an admin types into the manual publish
+form is credited to the submitter, not to the AI.
 
 ---
 
@@ -518,7 +522,7 @@ CSRF double-submit token and a same-origin request.
 | --- | --- |
 | Overview | Stats, AI health, failed jobs, latest submissions, manual tick |
 | Build now | Process every waiting story and rebuild the front page on demand |
-| Submissions | Queue, risk reasons, photos, retry / reject / publish |
+| Submissions | Queue, risk reasons, retry / reject / publish, clear flags and rewrite |
 | Articles | Edit, publish, unpublish, delete, correct |
 | Jobs | Inspect and retry the durable queue |
 | Editions | Inspect and rebuild a date |

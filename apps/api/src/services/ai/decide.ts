@@ -17,6 +17,8 @@ export interface DecisionInput {
   publishedLastHour: number;
   breakingLastSixHours: number;
   aiConfigured: boolean;
+  /** A human cleared the desk's flags; the AI review hold no longer applies. */
+  editorOverride?: boolean;
 }
 
 export interface Decision {
@@ -73,7 +75,7 @@ export function decideOutcome(input: DecisionInput): Decision {
     };
   }
 
-  if (ai.review.needed) {
+  if (ai.review.needed && !input.editorOverride) {
     return {
       ...base,
       action: 'hold',

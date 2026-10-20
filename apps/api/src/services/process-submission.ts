@@ -24,6 +24,18 @@ import { findCategorySlug, publishArticle } from './publishing.js';
 export const AI_PAUSED_REASON =
   'AI newsroom is paused because NVIDIA_API_KEY is not configured. This story will be processed automatically once the key is added.';
 
+/** Flags an editor cleared for this submission, stored by the override endpoint. */
+function parseOverrideReasons(value: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === 'string').slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
 export async function processSubmission(
   db: Db,
   submissionId: string,
@@ -66,12 +78,25 @@ export async function processSubmission(
 
   const anonymous = submission.anonymous === 1 || submission.identity_mode === 'anonymous';
 
+  /**
+   * A human may have cleared this submission's flags through the admin
+   * console. The AI is told about the exact concerns that were reviewed so it
+   * rewrites the story instead of raising the same flags again.
+   */
+  const editorOverride = submission.editor_override_at
+    ? {
+        reasons: parseOverrideReasons(submission.editor_override_reasons),
+        note: submission.editor_override_note,
+      }
+    : undefined;
+
   const system = buildSubmissionSystemPrompt({
     categories: promptCategories,
     voiceNotes: settings['ai.voice_notes'],
     minParagraphs: settings['ai.body_paragraphs_min'],
     maxParagraphs: Math.max(settings['ai.body_paragraphs_min'], settings['ai.body_paragraphs_max']),
     anonymous,
+    editorOverride,
   });
   const user = buildSubmissionUserPrompt({
     submission: {
@@ -190,6 +215,7 @@ export async function processSubmission(
     publishedLastHour: Number(publishedLastHour?.count ?? 0),
     breakingLastSixHours: Number(breakingRecent?.count ?? 0),
     aiConfigured: Boolean(config.ai.apiKey),
+    editorOverride: Boolean(editorOverride),
   });
 
   const categorySlug = await findCategorySlug(

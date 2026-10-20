@@ -1,0 +1,41 @@
+.override {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  margin: 0 0 18px;
+  border: 1px solid var(--line, #d8d2c4);
+  border-left: 4px solid var(--accent, #b3261e);
+  background: var(--paper, #fffdf7);
+}
+
+.heading {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+}
+
+.copy {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+
+.label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.note {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d8d2c4);
+  background: #fff;
+  font: inherit;
+  font-size: 0.95rem;
+  text-transform: none;
+  letter-spacing: normal;
+  resize: vertical;
+}

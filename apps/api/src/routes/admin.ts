@@ -66,6 +66,10 @@ const ManualPublishSchema = z.object({
   captions: z.array(z.string().max(240)).max(8).optional(),
 });
 
+const EditorOverrideSchema = z.object({
+  note: z.string().trim().max(600).optional(),
+});
+
 const ArticlePatchSchema = z.object({
   headline: z.string().trim().min(6).max(200).optional(),
   dek: z.string().trim().max(320).optional(),
@@ -445,6 +449,56 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
     });
     void runWorkerTick({ maxJobs: 2 });
     return { ok: true };
+  });
+
+  /**
+   * "Run it anyway": a human has read the desk's flags and wants the AI to
+   * rewrite the story with those concerns cleared. The flags are copied into
+   * the override columns before `review_reasons` is emptied, so the audit trail
+   * keeps exactly what was waived.
+   */
+  app.post<{ Params: { id: string } }>('/admin/submissions/:id/approve', async (request) => {
+    const ctx = await requireAdmin(db, request);
+    const body = EditorOverrideSchema.parse(request.body ?? {});
+    const data = await getSubmissionWithImages(db, request.params.id);
+    if (!data) throw notFound('Submission not found.');
+    if (data.submission.status === 'published') {
+      return { ok: true, message: 'Already published.', cleared: 0 };
+    }
+
+    const reasons = parseReviewReasons(data.submission.review_reasons);
+    const now = nowIso();
+    await db.run(
+      `UPDATE submissions SET status = 'received', review_reason = NULL, review_reasons = NULL,
+         ai_last_error = NULL, processed_at = NULL, ai_attempts = 0,
+         editor_override_at = ?, editor_override_by = ?, editor_override_note = ?,
+         editor_override_reasons = ?, updated_at = ? WHERE id = ?`,
+      [now, adminId(ctx), body.note ?? null, JSON.stringify(reasons), now, request.params.id],
+    );
+
+    const idempotencyKey = `process:${request.params.id}:override:${Math.floor(Date.now() / 60_000)}`;
+    await enqueueJob(db, {
+      type: 'process_submission',
+      payload: { submissionId: request.params.id, manual: true, editorOverride: true },
+      idempotencyKey,
+      priority: 6,
+    });
+    await db.run(
+      `UPDATE jobs SET status = 'pending', attempts = 0, run_at = ?, locked_until = NULL,
+         locked_by = NULL, last_error = NULL, finished_at = NULL, updated_at = ?
+       WHERE idempotency_key = ? AND status != 'done'`,
+      [now, now, idempotencyKey],
+    );
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: 'submission.override',
+      targetType: 'submission',
+      targetId: request.params.id,
+      detail: { reasons, note: body.note ?? null },
+      ipHash: clientIpHash(request),
+    });
+    void runWorkerTick({ maxJobs: 2 });
+    return { ok: true, cleared: reasons.length };
   });
 
   app.post<{ Params: { id: string } }>('/admin/submissions/:id/reject', async (request) => {

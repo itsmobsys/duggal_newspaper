@@ -81,6 +81,13 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
   const dek = stripHtmlLike(input.overrides?.dek ?? ai.dek) || null;
   const body = normaliseBody(input.overrides?.body ?? ai.body);
   if (!body) throw new Error('Refusing to publish an empty article body.');
+  /**
+   * An editor who types the body is the author of that text: it must not be
+   * stamped as AI copy. Headline/dek/tags may still come from the model, but
+   * `ai_generated` and `ai_model` describe the body.
+   */
+  const humanBody = Boolean(input.overrides?.body?.trim());
+  const aiModel = humanBody ? null : config.ai.model;
 
   const categorySlug = input.overrides?.categorySlug ?? ai.category;
   const tags = cleanTags(input.overrides?.tags ?? ai.tags);
@@ -97,7 +104,7 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
          author_display, author_member_id, identity_mode, tags, breaking, featured, placement, rank_score,
          editor_note, status, source_url, ai_model, ai_generated, reading_minutes, edition_date, views,
          published_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'published', ?, ?, 1, ?, ?, 0, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'published', ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
       [
         articleId,
         slug,
@@ -116,7 +123,8 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
         Math.round(55 + Math.random() * 8),
         input.overrides?.editorNote ?? null,
         submission.source_url,
-        config.ai.model,
+        aiModel,
+        humanBody ? 0 : 1,
         readingMinutes(body),
         editionDate,
         now,
@@ -171,7 +179,7 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
     await tx.run(
       `UPDATE submissions SET status = 'published', article_id = ?, processed_at = ?, ai_model = ?,
          review_reason = NULL, review_reasons = NULL, updated_at = ? WHERE id = ?`,
-      [articleId, now, config.ai.model, now, submission.id],
+      [articleId, now, aiModel, now, submission.id],
     );
 
     if (submission.member_id) {
@@ -188,7 +196,12 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
         newId('aud'),
         input.actor,
         articleId,
-        JSON.stringify({ submissionId: submission.id, model: config.ai.model, autonomous: true }),
+        JSON.stringify({
+          submissionId: submission.id,
+          model: aiModel,
+          autonomous: input.actor === 'ai-editor',
+          manualBody: humanBody,
+        }),
         now,
       ],
     );

@@ -59,6 +59,20 @@ describe('decideOutcome', () => {
     expect(decision.reasons[0]).toMatch(/credible threat/i);
   });
 
+  it('publishes a held story once an editor overrides the flags', () => {
+    const ai = aiResult({
+      review: {
+        needed: true,
+        reasons: ['Contains explicit sexual content about a real person: "his dick got tight".'],
+      },
+    });
+    const held = decideOutcome({ ...baseInput, ai });
+    expect(held.action).toBe('hold');
+
+    const overridden = decideOutcome({ ...baseInput, ai, editorOverride: true });
+    expect(overridden.action).toBe('publish');
+  });
+
   it('rejects obvious spam', () => {
     const decision = decideOutcome({
       ...baseInput,

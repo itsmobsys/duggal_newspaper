@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { CategoryOption } from '@/components/admin/SubmissionActions';
 import { SubmissionActions } from '@/components/admin/SubmissionActions';
+import EditorOverride from '@/components/admin/EditorOverride';
 import { adminServerFetch } from '@/lib/admin-server';
 import { ApiError } from '@/lib/api';
 import { formatDateTime, relativeTime } from '@/lib/format';
@@ -213,6 +214,11 @@ export default async function AdminSubmissionDetailPage({
           </ul>
         </div>
       ) : null}
+      <EditorOverride
+        submissionId={submission.id}
+        status={submission.status}
+        flags={submission.reviewReasons}
+      />
 
       {submission.ai_last_error ? (
         <div className={`alert alert--error ${styles.noticeBar}`} role="alert">
