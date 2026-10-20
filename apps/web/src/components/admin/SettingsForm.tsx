@@ -56,7 +56,7 @@ const GROUP_NOTES: Record<string, string> = {
   site: 'Masthead, canonical URL and the timezone every edition date is calculated in.',
   submissions: 'Intake limits for the public submission form and the API behind it.',
   content: 'Editorial switches and the phrase lists that force a story into human review.',
-  moderation: 'Thresholds between 0 and 1. Higher duplicate/spam values are stricter.',
+  moderation: 'Thresholds between 0 and 1. Higher spam values are stricter.',
   autonomy:
     'The robot runs on its own. These switches decide whether it may publish, build editions and hand out awards without a human.',
   ai: 'Prompt-level guidance for the AI editor. Keep voice notes stylistic, never factual instructions.',

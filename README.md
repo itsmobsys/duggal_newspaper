@@ -17,7 +17,7 @@ Built for a Discord community. Runs on free tiers. MIT licensed.
 | | |
 | --- | --- |
 | **Website submissions** | Headline, story, author, optional Discord handle, up to 4 photos, category, source link, anonymity. No Discord bot and no OAuth required. |
-| **AI newsroom** | Supplied by NVIDIA Nemotron (`nvidia/nemotron-3.5-super-vl-120b-a12b`). Rewrites copy, writes headlines/deks/captions/tags, picks a category, reads photos, spots duplicates and spam, and flags legally risky copy. |
+| **AI newsroom** | Supplied by NVIDIA Nemotron (`nvidia/nemotron-3.5-super-vl-120b-a12b`). Rewrites copy, writes headlines, deks and tags, picks a category, and spots spam. |
 | **Autonomy** | Routine stories publish themselves. Unsupported allegations, private data and dangerous instructions are held for a human. Nothing is silently dropped. |
 | **Daily editions** | The AI starts assembling tomorrow's edition at **23:00 IST**; it is live at **00:00 IST**. A deterministic fallback layout is used if the AI is unavailable. |
 | **Reading experience** | Dynamic front page, breaking ticker, categories, article pages, photo desk, search, tags, archives, editions, awards, corrections, RSS, sitemap and Open Graph images. New stories appear without a redeploy. |
@@ -471,7 +471,7 @@ enforces this structurally:
   file. Captions come from the words the submitter attached; the original file
   is what gets served.
 - Deterministic moderation runs before the model (blocked domains, banned
-  words, private-data and danger patterns, duplicate hashes, spam heuristics).
+  words, private-data and danger patterns, spam heuristics).
 - The editorial hold list is short and concrete: credible threats, weapon or
   drug or self-harm instructions, private data about a real person, sexual
   content involving minors or non-consensual sexual content, slurs or hate on
@@ -606,9 +606,8 @@ npm run verify
 ```
 
 runs typecheck, lint, the API test suite and both production builds. The suite
-covers the queue (leases, backoff, idempotency), moderation and duplicate
-detection, edition scheduling (including the 23:00 IST build), uploads, and the
-public/admin route contracts.
+covers the queue (leases, backoff, idempotency), moderation, edition scheduling
+(including the 23:00 IST build), uploads, and the public/admin route contracts.
 
 Formatting is enforced with Prettier; ESLint runs with `--max-warnings=0`.
 

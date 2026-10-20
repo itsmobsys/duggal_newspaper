@@ -47,14 +47,12 @@ interface SubmissionResponse {
   token?: string;
   status?: string;
   message?: string;
-  duplicate?: boolean;
 }
 
 interface SuccessState {
   token: string;
   url: string;
   message: string;
-  duplicate: boolean;
 }
 
 export interface SubmitFormProps {
@@ -501,7 +499,6 @@ export function SubmitForm({ settings, categories, timeZone }: SubmitFormProps):
           typeof data?.message === 'string' && data.message
             ? data.message
             : 'Received. The AI editor is on it.',
-        duplicate: data?.duplicate === true,
       });
       router.push(`/status/${encodeURIComponent(token)}`);
     } catch (error) {
@@ -548,7 +545,7 @@ export function SubmitForm({ settings, categories, timeZone }: SubmitFormProps):
     return (
       <div className={`alert alert--success ${styles.success}`} role="status">
         <div>
-          <h3>{success.duplicate ? 'Already on file.' : 'Filed.'}</h3>
+          <h3>Filed.</h3>
           <p>{success.message}</p>
         </div>
         <p className={styles.note}>

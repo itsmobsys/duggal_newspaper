@@ -13,7 +13,7 @@ import {
   buildSubmissionUserPrompt,
   type PromptCategory,
 } from './ai/prompt.js';
-import { analyzeHeuristics, findDuplicate } from './moderation.js';
+import { analyzeHeuristics } from './moderation.js';
 import { findCategorySlug, publishArticle } from './publishing.js';
 
 /**
@@ -63,30 +63,6 @@ export async function processSubmission(
     sourceUrl: submission.source_url,
     settings,
   });
-
-  const duplicate = await findDuplicate(
-    db,
-    {
-      submissionId: submission.id,
-      headline: submission.headline,
-      story: submission.story,
-      contentHash: heuristics.contentHash,
-    },
-    settings['moderation.duplicate_threshold'],
-  );
-  if (duplicate.duplicateOf) {
-    log.info(
-      {
-        submissionId: submission.id,
-        duplicateOf: duplicate.duplicateOf,
-        matchedOn: duplicate.matchedOn,
-        duplicateScore: duplicate.duplicateScore,
-        storyScore: duplicate.storyScore,
-        headlineScore: duplicate.headlineScore,
-      },
-      'Duplicate check matched an earlier submission',
-    );
-  }
 
   const anonymous = submission.anonymous === 1 || submission.identity_mode === 'anonymous';
 
@@ -210,11 +186,7 @@ export async function processSubmission(
   const decision = decideOutcome({
     ai,
     settings,
-    heuristics: {
-      ...heuristics,
-      duplicateOf: duplicate.duplicateOf,
-      duplicateScore: duplicate.duplicateScore,
-    },
+    heuristics,
     publishedLastHour: Number(publishedLastHour?.count ?? 0),
     breakingLastSixHours: Number(breakingRecent?.count ?? 0),
     aiConfigured: Boolean(config.ai.apiKey),
@@ -231,16 +203,8 @@ export async function processSubmission(
 
   const now = nowIso();
   await db.run(
-    `UPDATE submissions SET spam_score = ?, duplicate_of = ?,
-       duplicate_score = ?, content_hash = ?, updated_at = ? WHERE id = ?`,
-    [
-      decision.spamScore,
-      decision.duplicateOf,
-      duplicate.duplicateScore,
-      heuristics.contentHash,
-      now,
-      submission.id,
-    ],
+    `UPDATE submissions SET spam_score = ?, content_hash = ?, updated_at = ? WHERE id = ?`,
+    [decision.spamScore, heuristics.contentHash, now, submission.id],
   );
 
   if (decision.action === 'reject') {

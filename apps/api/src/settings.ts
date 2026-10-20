@@ -54,7 +54,6 @@ export interface SettingsValues {
   'autonomy.recover_failed_daily': boolean;
   'autonomy.max_publishes_per_hour': number;
 
-  'moderation.duplicate_threshold': number;
   'moderation.spam_threshold': number;
 
   'ai.voice_notes': string;
@@ -298,15 +297,6 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     max: 200,
   },
 
-  'moderation.duplicate_threshold': {
-    type: 'number',
-    default: 0.82,
-    label: 'Duplicate similarity threshold',
-    description: '0-1. Higher is stricter.',
-    group: 'Moderation',
-    min: 0.5,
-    max: 0.99,
-  },
   'moderation.spam_threshold': {
     type: 'number',
     default: 0.8,

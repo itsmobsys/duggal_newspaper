@@ -112,9 +112,9 @@ export default async function StandardsPage(): Promise<React.JSX.Element> {
             <li>Tags, and the section the story runs in.</li>
           </ul>
           <p>
-            The model may also read a submission to spot duplicates, spam, and copy that carries
-            legal risk. That reading changes the routing of a story; it does not change the pictures
-            that were sent.
+            The model may also read a submission to spot spam and copy that carries concrete legal
+            risk. That reading changes the routing of a story; it does not change the pictures that
+            were sent.
           </p>
         </section>
 
@@ -129,8 +129,7 @@ export default async function StandardsPage(): Promise<React.JSX.Element> {
             </li>
             <li>Present its rewrite as the reader&rsquo;s original words.</li>
             <li>
-              Publish unsupported allegations, private personal data or dangerous instructions
-              without a human decision.
+              Publish private personal data or dangerous instructions without a human decision.
             </li>
           </ul>
           <p>
@@ -144,15 +143,17 @@ export default async function StandardsPage(): Promise<React.JSX.Element> {
           <h2 id="risk-holds">Stories held for a human</h2>
           <p>
             Deterministic checks run before the model does — blocked domains, banned terms, hold
-            keywords, duplicate hashes and spam heuristics. Routine stories publish themselves;
-            genuinely risky ones are parked in a review queue instead.
+            keywords and spam heuristics. Routine stories publish themselves; only the narrow list
+            below is parked in a review queue instead.
           </p>
-          <p>Copy that is held rather than published typically involves:</p>
+          <p>Copy that is held rather than published involves:</p>
           <ul>
-            <li>Allegations about identifiable people that the submission does not support.</li>
+            <li>Credible threats of violence against a real person.</li>
+            <li>Instructions for weapons, explosives, drugs or self-harm.</li>
             <li>Private personal data, such as addresses, phone numbers or documents.</li>
-            <li>Medical or legal claims.</li>
-            <li>Instructions that could cause harm.</li>
+            <li>Sexual content involving minors, or non-consensual sexual content.</li>
+            <li>Slurs aimed at a protected group.</li>
+            <li>Active fraud or phishing.</li>
           </ul>
           <p>
             A held story is not deleted. It waits with its reasons attached until a person publishes

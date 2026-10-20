@@ -6,7 +6,6 @@ import {
   isSafeExternalUrl,
   readingMinutes,
   slugify,
-  similarity,
   stripHtmlLike,
 } from '../src/lib/text.js';
 
@@ -24,16 +23,6 @@ describe('text helpers', () => {
   it('produces a stable content hash regardless of case and punctuation', () => {
     expect(contentHash('Hello, World!')).toBe(contentHash('hello world'));
     expect(contentHash('one')).not.toBe(contentHash('two'));
-  });
-
-  it('scores near-duplicates highly and unrelated text lowly', () => {
-    const original =
-      'The server owner discovered the general channel and declared a new era for everyone.';
-    const nearDuplicate =
-      'The server owner discovered the general channel, then declared a new era for everyone.';
-    const unrelated = 'A ranked match was lost and blamed on lag, matchmaking and the moon phase.';
-    expect(similarity(original, nearDuplicate)).toBeGreaterThan(0.5);
-    expect(similarity(original, unrelated)).toBeLessThan(0.3);
   });
 
   it('rejects local and non-http URLs', () => {

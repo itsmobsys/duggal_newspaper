@@ -45,33 +45,6 @@ export function contentHash(input: string): string {
   return createHash('sha256').update(normalizeForHash(input)).digest('hex');
 }
 
-function shingles(input: string, size = 3): Set<string> {
-  const words = normalizeForHash(input).split(' ').filter(Boolean);
-  const set = new Set<string>();
-  if (words.length === 0) return set;
-  if (words.length < size) {
-    set.add(words.join(' '));
-    return set;
-  }
-  for (let index = 0; index <= words.length - size; index += 1) {
-    set.add(words.slice(index, index + size).join(' '));
-  }
-  return set;
-}
-
-/** Jaccard similarity over word trigrams. Returns 0..1. */
-export function similarity(a: string, b: string): number {
-  const setA = shingles(a);
-  const setB = shingles(b);
-  if (setA.size === 0 || setB.size === 0) return 0;
-  let intersection = 0;
-  for (const item of setA) {
-    if (setB.has(item)) intersection += 1;
-  }
-  const union = setA.size + setB.size - intersection;
-  return union === 0 ? 0 : intersection / union;
-}
-
 export function slugify(input: string, maxLength = 72): string {
   const base = input
     .normalize('NFKD')

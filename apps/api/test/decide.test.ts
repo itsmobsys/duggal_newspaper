@@ -23,8 +23,6 @@ function heuristics(overrides: Partial<HeuristicSignals> = {}): HeuristicSignals
     spamScore: 0.05,
     reviewReasons: [],
     blockedDomain: false,
-    duplicateOf: null,
-    duplicateScore: 0,
     linkCount: 0,
     ...overrides,
   };
@@ -70,15 +68,14 @@ describe('decideOutcome', () => {
     expect(decision.action).toBe('reject');
   });
 
-  it('holds a likely duplicate of an earlier submission', () => {
+  it('publishes repeat submissions of the same story', () => {
+    // Duplicate detection was removed on purpose: the same news may run as often as people send it.
     const decision = decideOutcome({
       ...baseInput,
       ai: aiResult(),
-      heuristics: heuristics({ duplicateOf: 'sub_earlier', duplicateScore: 0.95 }),
+      heuristics: heuristics({ spamScore: 0.4 }),
     });
-    expect(decision.action).toBe('hold');
-    expect(decision.reasons.join(' ')).toMatch(/duplicate/i);
-    expect(decision.duplicateOf).toBe('sub_earlier');
+    expect(decision.action).toBe('publish');
   });
 
   it('holds when heuristics flag a concrete review reason', () => {

@@ -7,8 +7,6 @@ export interface HeuristicSignals {
   spamScore: number;
   reviewReasons: string[];
   blockedDomain: boolean;
-  duplicateOf: string | null;
-  duplicateScore: number;
   linkCount: number;
 }
 
@@ -26,7 +24,6 @@ export interface Decision {
   reasons: string[];
   breaking: boolean;
   spamScore: number;
-  duplicateOf: string | null;
   deferredSeconds: number;
 }
 
@@ -43,7 +40,6 @@ export interface Decision {
 export function decideOutcome(input: DecisionInput): Decision {
   const { ai, settings, heuristics } = input;
   const spamScore = heuristics.spamScore;
-  const duplicateOf = heuristics.duplicateOf;
 
   const breakingAllowed =
     ai.breaking &&
@@ -54,7 +50,6 @@ export function decideOutcome(input: DecisionInput): Decision {
   const base = {
     breaking: breakingAllowed,
     spamScore,
-    duplicateOf,
     deferredSeconds: 0,
   };
 
@@ -90,16 +85,6 @@ export function decideOutcome(input: DecisionInput): Decision {
 
   if (heuristics.reviewReasons.length > 0) {
     return { ...base, action: 'hold', reasons: heuristics.reviewReasons };
-  }
-
-  if (duplicateOf && heuristics.duplicateScore >= settings['moderation.duplicate_threshold']) {
-    return {
-      ...base,
-      action: 'hold',
-      reasons: [
-        `Duplicate (${Math.round(heuristics.duplicateScore * 100)}% match) of submission ${duplicateOf}. Publish the original instead or change the story.`,
-      ],
-    };
   }
 
   if (spamScore >= settings['moderation.spam_threshold']) {

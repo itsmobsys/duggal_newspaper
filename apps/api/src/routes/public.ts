@@ -8,13 +8,7 @@ import { AppError, badRequest, notFound, tooManyRequests } from '../lib/errors.j
 import { newId, randomToken } from '../lib/id.js';
 import { consumeRateLimit } from '../lib/rate-limit.js';
 import { nowIso } from '../lib/time.js';
-import {
-  contentHash,
-  hostnameOf,
-  isSafeExternalUrl,
-  sanitizeUserText,
-  stripHtmlLike,
-} from '../lib/text.js';
+import { hostnameOf, isSafeExternalUrl, sanitizeUserText, stripHtmlLike } from '../lib/text.js';
 import { loadSettings, toPublicSettings } from '../settings.js';
 import { analyzeHeuristics } from '../services/moderation.js';
 import { enqueueJob } from '../services/queue.js';
@@ -333,24 +327,6 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
     const heuristics = analyzeHeuristics({ headline, story, sourceUrl, settings });
     if (heuristics.blockedDomain) {
       throw badRequest('That source link is not allowed.', 'SOURCE_BLOCKED');
-    }
-
-    const identifierHash = contentHash(`${headline}\n${story}`);
-    const recentDuplicate = await db.get<{ id: string; public_token: string; status: string }>(
-      `SELECT id, public_token, status FROM submissions
-       WHERE content_hash = ? AND ip_hash = ? AND created_at >= ?
-       ORDER BY created_at DESC LIMIT 1`,
-      [identifierHash, ipHash, new Date(Date.now() - 10 * 60 * 1000).toISOString()],
-    );
-    if (recentDuplicate) {
-      reply.code(200);
-      return {
-        id: recentDuplicate.id,
-        token: recentDuplicate.public_token,
-        status: recentDuplicate.status,
-        message: 'Already received. We did not create a duplicate.',
-        duplicate: true,
-      };
     }
 
     const uploads = await claimUploads(db, uploadIds);

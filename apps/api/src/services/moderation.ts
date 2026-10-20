@@ -1,4 +1,3 @@
-import type { Db } from '../db/client.js';
 import {
   containsAnyTerm,
   countMatches,
@@ -6,8 +5,6 @@ import {
   hostnameOf,
   isLikelySpamText,
   isSafeExternalUrl,
-  normalizeForHash,
-  similarity,
 } from '../lib/text.js';
 import type { Settings } from '../settings.js';
 import type { HeuristicSignals } from './ai/decide.js';
@@ -159,8 +156,6 @@ export function analyzeHeuristics(input: HeuristicInput): HeuristicReport {
     spamScore,
     reviewReasons: reasons,
     blockedDomain,
-    duplicateOf: null,
-    duplicateScore: 0,
     linkCount: urls.length,
     contentHash: contentHash(fullText),
     urls,
@@ -170,105 +165,4 @@ export function analyzeHeuristics(input: HeuristicInput): HeuristicReport {
     allCapsRatio,
     chars: fullText.length,
   };
-}
-
-export interface DuplicateCheck {
-  duplicateOf: string | null;
-  duplicateScore: number;
-  /** Which signal produced the match. Null when nothing qualified. */
-  matchedOn: 'content_hash' | 'original_body' | 'story' | 'headline' | null;
-  storyScore: number;
-  headlineScore: number;
-}
-
-const NO_DUPLICATE: DuplicateCheck = {
-  duplicateOf: null,
-  duplicateScore: 0,
-  matchedOn: null,
-  storyScore: 0,
-  headlineScore: 0,
-};
-
-/**
- * Compare against recent submissions (same content hash or trigram similarity).
- * Keeps the query bounded so the free tier stays cheap.
- *
- * The submission being processed is already stored with its own content hash,
- * so it must be excluded from every comparison or it will always match itself.
- * Text that normalizes to nothing (empty, emoji-only, punctuation) is never a
- * duplicate: every such string shares the hash of an empty string.
- */
-export async function findDuplicate(
-  db: Db,
-  input: { submissionId: string; headline: string; story: string; contentHash: string },
-  threshold: number,
-): Promise<DuplicateCheck> {
-  const storyText = input.story.trim();
-  if (normalizeForHash(storyText).length === 0) return { ...NO_DUPLICATE };
-
-  const exact = await db.get<{ id: string }>(
-    `SELECT id FROM submissions
-      WHERE content_hash = ? AND id <> ? AND length(trim(story)) > 0
-      ORDER BY created_at DESC LIMIT 1`,
-    [input.contentHash, input.submissionId],
-  );
-  if (exact) {
-    return {
-      duplicateOf: exact.id,
-      duplicateScore: 1,
-      matchedOn: 'content_hash',
-      storyScore: 1,
-      headlineScore: 0,
-    };
-  }
-
-  const articleExact = await db.get<{ id: string; submission_id: string | null }>(
-    `SELECT id, submission_id FROM articles
-      WHERE original_body IS NOT NULL AND length(trim(original_body)) > 0
-        AND original_body = ? AND (submission_id IS NULL OR submission_id <> ?)
-      LIMIT 1`,
-    [storyText, input.submissionId],
-  );
-  if (articleExact) {
-    return {
-      duplicateOf: articleExact.submission_id,
-      duplicateScore: 1,
-      matchedOn: 'original_body',
-      storyScore: 1,
-      headlineScore: 0,
-    };
-  }
-
-  const recent = await db.all<{ id: string; headline: string; story: string }>(
-    `SELECT id, headline, story FROM submissions
-      WHERE id <> ? ORDER BY created_at DESC LIMIT 120`,
-    [input.submissionId],
-  );
-
-  const headlineText = input.headline ?? '';
-  let best: DuplicateCheck = { ...NO_DUPLICATE };
-  for (const row of recent) {
-    const rowStory = row.story ?? '';
-    // A submission with no real body is not evidence of anything.
-    if (normalizeForHash(rowStory).length === 0) continue;
-    const storyScore = similarity(storyText, rowStory);
-    const headlineScore =
-      normalizeForHash(headlineText).length > 0 && normalizeForHash(row.headline ?? '').length > 0
-        ? similarity(headlineText, row.headline) * 0.85
-        : 0;
-    const score = Math.max(storyScore, headlineScore);
-    if (score > best.duplicateScore) {
-      best = {
-        duplicateOf: row.id,
-        duplicateScore: Number(score.toFixed(3)),
-        matchedOn: storyScore >= headlineScore ? 'story' : 'headline',
-        storyScore: Number(storyScore.toFixed(3)),
-        headlineScore: Number(headlineScore.toFixed(3)),
-      };
-    }
-  }
-  if (best.duplicateScore < threshold) {
-    return { ...best, duplicateOf: null, matchedOn: null };
-  }
-  return best;
 }

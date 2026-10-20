@@ -50,7 +50,6 @@ interface SubmissionRecord {
   review_reason: string | null;
   reviewReasons: string[];
   spam_score: number;
-  duplicate_score: number | null;
   ai_model: string | null;
   ai_attempts: number;
   ai_last_error: string | null;
@@ -314,10 +313,6 @@ export default async function AdminSubmissionDetailPage({
               <dd>{submission.ai_model || '—'}</dd>
               <dt>Decision</dt>
               <dd>{decision}</dd>
-              <dt>Duplicate</dt>
-              <dd>
-                {submission.duplicate_score === null ? '—' : scoreText(submission.duplicate_score)}
-              </dd>
             </dl>
 
             {aiReasons.length > 0 ? (

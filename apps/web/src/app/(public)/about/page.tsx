@@ -92,8 +92,8 @@ export default async function AboutPage(): Promise<React.JSX.Element> {
             <div>
               <strong>Checks run first</strong>
               <span>
-                Blocked domains, banned terms, hold keywords, duplicate hashes and spam heuristics
-                run before any model is called.
+                Blocked domains, banned terms, hold keywords and spam heuristics run before any
+                model is called.
               </span>
             </div>
           </li>
