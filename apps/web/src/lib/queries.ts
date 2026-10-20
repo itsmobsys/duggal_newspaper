@@ -5,10 +5,13 @@ import type {
   ArticleDetail,
   ArticleImageView,
   ArticleListItem,
+  ArticleVoteCounts,
   AwardView,
   CategoryView,
+  CommunityReview,
   EditionView,
   Page,
+  ReviewSummary,
 } from './types';
 
 /** Raw shapes returned by libsql. Columns are snake_case; views are camelCase. */
@@ -636,4 +639,93 @@ export async function getFrontPage(options: {
 export async function getRecentEditions(limit = 7): Promise<EditionView[]> {
   const page = await listEditions(limit, 0);
   return page.items;
+}
+
+// --------------------------------------------------------------- community
+
+interface ReviewRow {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  rating: number;
+  body: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function toCommunityReview(row: ReviewRow): CommunityReview {
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+    rating: Number(row.rating),
+    body: row.body,
+    status: row.status === 'pending' || row.status === 'hidden' ? row.status : 'published',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Vote counts for one story. The reader's own vote is filled in client-side
+ * because the server render must not depend on a personal cookie (it would
+ * turn every article into a dynamic render).
+ */
+export async function getArticleVoteCounts(articleId: string): Promise<ArticleVoteCounts> {
+  const row = await safeQueryOne<{ likes: number; dislikes: number }>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0) AS likes,
+       COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS dislikes
+     FROM article_votes WHERE article_id = ?`,
+    [articleId],
+  );
+  return {
+    articleId,
+    likes: Number(row?.likes ?? 0),
+    dislikes: Number(row?.dislikes ?? 0),
+    myVote: null,
+    authenticated: false,
+  };
+}
+
+/** Published ratings only: pending and hidden reviews never count. */
+export async function getReviewSummary(articleId: string): Promise<ReviewSummary> {
+  const rows = await safeQuery<{ rating: number; count: number }>(
+    `SELECT rating, COUNT(*) AS count FROM article_reviews
+     WHERE article_id = ? AND status = 'published'
+     GROUP BY rating ORDER BY rating ASC`,
+    [articleId],
+  );
+  const byRating = new Map(rows.map((row) => [Number(row.rating), Number(row.count)]));
+  let count = 0;
+  let total = 0;
+  const distribution = [1, 2, 3, 4, 5].map((rating) => {
+    const ratingCount = byRating.get(rating) ?? 0;
+    count += ratingCount;
+    total += rating * ratingCount;
+    return { rating, count: ratingCount };
+  });
+  return {
+    count,
+    average: count > 0 ? Math.round((total / count) * 100) / 100 : 0,
+    distribution,
+  };
+}
+
+export async function listPublishedReviews(
+  articleId: string,
+  limit = 10,
+  offset = 0,
+): Promise<CommunityReview[]> {
+  const capped = Math.min(Math.max(limit, 1), 50);
+  const safeOffset = Math.max(offset, 0);
+  const rows = await safeQuery<ReviewRow>(
+    `SELECT id, display_name, avatar_url, rating, body, status, created_at, updated_at
+     FROM article_reviews
+     WHERE article_id = ? AND status = 'published'
+     ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [articleId, capped, safeOffset],
+  );
+  return rows.map(toCommunityReview);
 }

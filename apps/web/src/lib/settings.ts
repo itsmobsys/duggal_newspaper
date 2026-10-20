@@ -28,6 +28,7 @@ export function defaultPublicSettings(): PublicSettings {
     },
     content: { breakingEnabled: true },
     appearance: { frontPageLimit: 24, showAwards: true, tickerCount: 6 },
+    community: { votingEnabled: true, reviewsEnabled: true, reviewMaxChars: 1200 },
   };
 }
 
@@ -129,6 +130,20 @@ export async function getPublicSettings(): Promise<PublicSettings> {
         break;
       case 'appearance.ticker_count':
         values.appearance.tickerCount = asNumber(value, values.appearance.tickerCount, 0, 12);
+        break;
+      case 'community.voting_enabled':
+        values.community.votingEnabled = asBoolean(value, values.community.votingEnabled);
+        break;
+      case 'community.reviews_enabled':
+        values.community.reviewsEnabled = asBoolean(value, values.community.reviewsEnabled);
+        break;
+      case 'community.review_max_chars':
+        values.community.reviewMaxChars = asNumber(
+          value,
+          values.community.reviewMaxChars,
+          200,
+          3000,
+        );
         break;
       default:
         break;

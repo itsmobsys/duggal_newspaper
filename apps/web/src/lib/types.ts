@@ -23,6 +23,60 @@ export interface PublicSettings {
   };
   content: { breakingEnabled: boolean };
   appearance: { frontPageLimit: number; showAwards: boolean; tickerCount: number };
+  community: { votingEnabled: boolean; reviewsEnabled: boolean; reviewMaxChars: number };
+}
+
+export interface ArticleVoteCounts {
+  articleId: string;
+  likes: number;
+  dislikes: number;
+  myVote: -1 | 1 | null;
+  authenticated: boolean;
+}
+
+export interface ReviewSummary {
+  count: number;
+  average: number;
+  distribution: Array<{ rating: number; count: number }>;
+}
+
+export interface CommunityReview {
+  id: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  rating: number;
+  body: string;
+  status: 'published' | 'pending' | 'hidden';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommunityViewer {
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export interface ReviewListResponse {
+  articleId: string;
+  summary: ReviewSummary;
+  reviews: CommunityReview[];
+  hasMore: boolean;
+  myReview: CommunityReview | null;
+  authenticated: boolean;
+  viewer: CommunityViewer | null;
+}
+
+export interface ReviewSubmitResponse {
+  review: CommunityReview;
+  summary: ReviewSummary;
+  published: boolean;
+  message: string;
+  authenticated: boolean;
+}
+
+export interface ReviewDeleteResponse {
+  ok: true;
+  summary: ReviewSummary;
 }
 
 export interface CategoryView {
