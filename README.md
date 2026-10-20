@@ -1,8 +1,9 @@
 # Duggal Badmosh Daily
 
 **A community newspaper that writes itself.** Readers file the stories, an AI desk
-rewrites them in house style, and a fresh edition goes live at midnight, every
-night, without an editor in the loop.
+rewrites them in house style, and approved stories go live immediately — no
+editor in the loop and no waiting for the edition. A separate nightly build
+assembles the dated edition at midnight.
 
 Built for a Discord community. Runs on free tiers. MIT licensed.
 
@@ -19,7 +20,7 @@ Built for a Discord community. Runs on free tiers. MIT licensed.
 | **Website submissions** | Headline, story, author, optional Discord handle, up to 4 photos, category, source link, anonymity. No Discord bot and no OAuth required. |
 | **AI newsroom** | Supplied by NVIDIA Nemotron (`nvidia/nemotron-3.5-super-vl-120b-a12b`). Rewrites copy, writes headlines, deks and tags, picks a category, and spots spam. |
 | **Autonomy** | Routine stories publish themselves. Only concrete abuse and illegal content is held for a human: credible threats, weapon/explosive/drug/self-harm instructions, private personal data, minors or non-consensual sexual content, protected-group slurs, and active fraud or phishing. Tone, profanity, gossip, sarcasm, roasts, opinions and unverified allegations are **not** holds. Nothing is silently dropped. |
-| **Daily editions** | The AI starts assembling tomorrow's edition at **23:00 IST**; it is live at **00:00 IST**. A deterministic fallback layout is used if the AI is unavailable. |
+| **Daily editions** | An archive snapshot, not a publish queue: the AI assembles the edition dated for the next day at **23:00 IST**, live at **00:00 IST**. Stories do **not** wait for it — an approved story is on the live site within seconds. A deterministic fallback layout is used if the AI is unavailable. |
 | **Reading experience** | Dynamic front page, breaking ticker, categories, article pages, photo desk, search, tags, archives, editions, awards, corrections, RSS, sitemap and Open Graph images. New stories appear without a redeploy. |
 | **Admin console** | Moderation queue, article editor, corrections, job retries, settings, AI diagnostics, audit log, and the kill switch. |
 | **Cost** | ₹0/month on Vercel Hobby + Render Free + Turso Free + Vercel Blob (Hobby) + the NVIDIA developer API. |
@@ -48,8 +49,9 @@ Vercel (Next.js)  ──────────────►  Render (Fastify
    copy, and either publishes or parks it for review.
 5. Publishing revalidates the relevant website paths. The site is statically
    rendered with ISR, so pages stay fast and fresh.
-6. At 23:00 IST the scheduler builds the next edition; at midnight the front
-   page simply starts reading the new date.
+6. Separately, at 23:00 IST the scheduler builds the next edition from stories
+   already on the site; at midnight the front page simply starts reading the new
+   date.
 
 The queue lives in SQLite, so there is no Redis and no extra service. Leases,
 heartbeats, exponential backoff and idempotency keys make it safe to run the
@@ -61,6 +63,7 @@ worker in-process **and** from an external cron at the same time.
 
 | Time | What happens |
 | --- | --- |
+| **Any time** | An approved story is written straight to the live site. Publishing never waits for the edition build. |
 | **00:00** | The front page rolls over to the edition dated today. Stories are tagged with the edition they will be *read* in. |
 | **Every 20s** | In-process worker tick on Render (`WORKER_ENABLED=true`). |
 | **Every 5 min** | GitHub Actions calls `POST /internal/worker/tick` as a safety net, and keeps the free Render instance warm. |
@@ -73,8 +76,11 @@ worker in-process **and** from an external cron at the same time.
 Both `23` and the timezone are settings, not constants:
 `autonomy.edition_hour` and `site.timezone` in **Admin → Settings**.
 
-A story filed at 23:40 is still published immediately to the live site; edition
-membership is by the date the paper is read, not the minute it was written.
+Approval publishes instantly. The 00:00 edition is a nightly snapshot of what is
+already live: a story filed at 23:40 is on the website within seconds of passing
+the desk, and it appears in the next edition too, because edition membership is
+by the date the paper is read, not the minute it was written. Holding a story
+for the edition build is not a thing this system does.
 
 ---
 
@@ -549,10 +555,13 @@ away" button:
    is configured, whether a tick was requested — not a completion claim.
 
 Nothing unsafe is bypassed: stories held for review stay held, and the normal
-moderation rules decide what publishes. The explicit click only overrides the
-*autonomy* switches (the kill switch exists to stop unattended runs), and it
-never downgrades a finished AI edition to the fallback layout if the AI desk is
-unreachable during the rebuild.
+moderation rules decide what publishes. Each story also goes live on its own the
+moment its rewrite finishes; step 2 only controls when the dated edition is
+rebuilt, which is a snapshot of those same stories.
+
+The explicit click only overrides the *autonomy* switches (the kill switch exists
+to stop unattended runs), and it never downgrades a finished AI edition to the
+fallback layout if the AI desk is unreachable during the rebuild.
 
 Password reset is intentionally not a self-service feature (there is no email
 provider). Use:
