@@ -6,6 +6,7 @@ import type {
   AdminSessionRow,
   AdminUserRow,
   ArticleImageRow,
+  ArticleReviewRow,
   ArticleRow,
   AwardRow,
   CategoryRow,
@@ -113,6 +114,10 @@ const CorrectionActionSchema = z.object({
 const ReportActionSchema = z.object({
   status: z.enum(['open', 'resolved', 'dismissed']),
   note: z.string().trim().max(1000).optional(),
+});
+
+const ReviewModerationSchema = z.object({
+  status: z.enum(['published', 'pending', 'hidden']),
 });
 
 const SettingsSchema = z.record(z.unknown());
@@ -1156,6 +1161,83 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
       ipHash: clientIpHash(request),
     });
     void revalidateWeb(['/', '/awards']);
+    return { ok: true };
+  });
+
+  // ---------------------------------------------------------------- reviews
+  app.get('/admin/reviews', async (request) => {
+    await requireAdmin(db, request);
+    const query = request.query as Record<string, string | undefined>;
+    const { limit, offset } = parsePagination(query);
+    const status = query.status ?? '';
+    const reviews = await db.all<
+      ArticleReviewRow & { slug: string | null; headline: string | null }
+    >(
+      `SELECT r.*, a.slug, a.headline FROM article_reviews r
+       LEFT JOIN articles a ON a.id = r.article_id
+       WHERE (? = '' OR r.status = ?)
+       ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
+      [status, status, limit, offset],
+    );
+    const counts = await db.all<{ status: string; count: number }>(
+      'SELECT status, COUNT(*) AS count FROM article_reviews GROUP BY status',
+    );
+    return { reviews, counts, limit, offset };
+  });
+
+  app.patch<{ Params: { id: string } }>('/admin/reviews/:id', async (request) => {
+    const ctx = await requireAdmin(db, request);
+    const body = ReviewModerationSchema.parse(request.body ?? {});
+    const existing = await db.get<
+      ArticleReviewRow & { slug: string | null; headline: string | null }
+    >(
+      `SELECT r.*, a.slug, a.headline FROM article_reviews r
+       LEFT JOIN articles a ON a.id = r.article_id WHERE r.id = ?`,
+      [request.params.id],
+    );
+    if (!existing) throw notFound('Review not found.');
+
+    await db.run(
+      `UPDATE article_reviews SET status = ?, moderation_reason = ?, updated_at = ? WHERE id = ?`,
+      [
+        body.status,
+        body.status === 'published' ? null : `moderator:${body.status}`,
+        nowIso(),
+        existing.id,
+      ],
+    );
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: body.status === 'published' ? 'review.publish' : 'review.hide',
+      targetType: 'review',
+      targetId: existing.id,
+      detail: { articleId: existing.article_id, status: body.status },
+      ipHash: clientIpHash(request),
+    });
+    void revalidateWeb(['/leaderboard', ...(existing.slug ? [`/article/${existing.slug}`] : [])]);
+    return { ok: true };
+  });
+
+  app.delete<{ Params: { id: string } }>('/admin/reviews/:id', async (request) => {
+    const ctx = await requireAdmin(db, request);
+    const existing = await db.get<
+      ArticleReviewRow & { slug: string | null; headline: string | null }
+    >(
+      `SELECT r.*, a.slug, a.headline FROM article_reviews r
+       LEFT JOIN articles a ON a.id = r.article_id WHERE r.id = ?`,
+      [request.params.id],
+    );
+    if (!existing) throw notFound('Review not found.');
+    await db.run('DELETE FROM article_reviews WHERE id = ?', [existing.id]);
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: 'review.delete',
+      targetType: 'review',
+      targetId: existing.id,
+      detail: { articleId: existing.article_id },
+      ipHash: clientIpHash(request),
+    });
+    void revalidateWeb(['/leaderboard', ...(existing.slug ? [`/article/${existing.slug}`] : [])]);
     return { ok: true };
   });
 

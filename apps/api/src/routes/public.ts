@@ -24,15 +24,23 @@ import {
   type UploadTicket,
 } from '../services/uploads.js';
 import { runWorkerTick } from '../services/worker.js';
-import { requireUserSession } from '../services/user-sessions.js';
 import { clientIpHash, writeAudit } from './helpers.js';
+
+const DiscordHandleSchema = z
+  .string()
+  .trim()
+  .max(40)
+  .regex(/^[A-Za-z0-9._#-]{2,40}$/, 'Discord username looks invalid.');
 
 const SubmissionBodySchema = z.object({
   headline: z.string().trim().min(6).max(300),
   story: z.string().trim().min(40).max(50_000),
+  authorName: z.string().trim().min(2).max(60),
+  discordHandle: z.union([DiscordHandleSchema, z.literal('')]).optional(),
   categorySlug: z.string().trim().max(64).optional(),
   sourceUrl: z.union([z.string().trim().max(2048), z.literal('')]).optional(),
   anonymous: z.boolean().optional(),
+  identityMode: z.enum(['named', 'discord', 'anonymous']).optional(),
   uploadIds: z.array(z.string().trim().min(4).max(80)).max(8).optional(),
   website: z.string().max(200).optional(),
   formStartedAt: z.number().int().optional(),
@@ -172,7 +180,6 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
   // ------------------------------------------------------------------ uploads
   app.post('/public/uploads/init', async (request) => {
     const body = UploadInitSchema.parse(request.body ?? {});
-    await requireUserSession(db, request);
     const ipHash = clientIpHash(request);
     await guard(
       db,
@@ -240,10 +247,6 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
     const body = SubmissionBodySchema.parse(request.body ?? {});
     assertNotBot(body);
 
-    // Every submission is tied to a Discord login. Identity details are read
-    // from the session (and therefore from Discord), never from the request body.
-    const user = await requireUserSession(db, request);
-
     const ipHash = clientIpHash(request);
     const settings = await loadSettings(db);
 
@@ -276,9 +279,14 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
       );
     }
 
-    const anonymous = Boolean(body.anonymous);
+    const anonymous = Boolean(body.anonymous) || body.identityMode === 'anonymous';
     if (anonymous && !settings['submissions.anonymous_allowed']) {
       throw badRequest('Anonymous submissions are currently disabled.', 'ANONYMOUS_DISABLED');
+    }
+
+    const discordHandle = (body.discordHandle ?? '').trim();
+    if (discordHandle && !settings['submissions.discord_identity_allowed']) {
+      throw badRequest('Discord identities are currently disabled.', 'DISCORD_DISABLED');
     }
 
     const sourceUrl: string | null = (body.sourceUrl ?? '').trim() || null;
@@ -325,17 +333,35 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
     const now = nowIso();
     const submissionId = newId('sub');
     const publicToken = randomToken(24);
-    const identityMode: 'discord' | 'anonymous' = anonymous ? 'anonymous' : 'discord';
-    // Store the real Discord identity on the submission; `anonymous` masks it on
-    // the public site (see publishing.ts) while the desk can still see who filed.
-    const authorDisplay = user.displayName;
-    const authorHandle = user.username;
-    const memberId = user.memberId;
+    const identityMode: 'named' | 'discord' | 'anonymous' = anonymous
+      ? 'anonymous'
+      : discordHandle
+        ? 'discord'
+        : 'named';
 
-    await db.run(
-      'UPDATE members SET submission_count = submission_count + 1, updated_at = ? WHERE id = ?',
-      [now, memberId],
-    );
+    let memberId: string | null = null;
+    if (!anonymous) {
+      const existing = await db.get<{ id: string }>(
+        `SELECT id FROM members WHERE lower(display_name) = lower(?)
+           OR (discord_username IS NOT NULL AND lower(discord_username) = lower(?))
+         LIMIT 1`,
+        [body.authorName, discordHandle || '\u0000'],
+      );
+      if (existing) {
+        memberId = existing.id;
+        await db.run(
+          `UPDATE members SET submission_count = submission_count + 1, discord_username = COALESCE(?, discord_username), updated_at = ? WHERE id = ?`,
+          [discordHandle || null, now, memberId],
+        );
+      } else {
+        memberId = newId('mem');
+        await db.run(
+          `INSERT INTO members (id, display_name, discord_username, submission_count, published_count, created_at, updated_at)
+           VALUES (?, ?, ?, 1, 0, ?, ?)`,
+          [memberId, body.authorName, discordHandle || null, now, now],
+        );
+      }
+    }
 
     await db.transaction(async (tx) => {
       await tx.run(
@@ -348,8 +374,8 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
           publicToken,
           headline,
           story,
-          authorDisplay.slice(0, 60),
-          authorHandle,
+          body.authorName.slice(0, 60),
+          discordHandle || null,
           body.contactEmail || null,
           categorySlug,
           sourceUrl,
@@ -386,7 +412,7 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
             upload.width,
             upload.height,
             upload.checksum,
-            identityMode === 'anonymous' ? 'Submitted photo' : `Photo: ${authorDisplay}`,
+            identityMode === 'anonymous' ? 'Submitted photo' : `Photo: ${body.authorName}`,
             position,
             now,
             upload.original_key,

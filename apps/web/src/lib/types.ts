@@ -14,6 +14,7 @@ export interface PublicSettings {
   };
   submissions: {
     anonymousAllowed: boolean;
+    discordIdentityAllowed: boolean;
     requireSourceUrl: boolean;
     minStoryChars: number;
     maxStoryChars: number;
@@ -23,6 +24,13 @@ export interface PublicSettings {
   };
   content: { breakingEnabled: boolean };
   appearance: { frontPageLimit: number; showAwards: boolean; tickerCount: number };
+  community: {
+    votingEnabled: boolean;
+    reviewsEnabled: boolean;
+    leaderboardEnabled: boolean;
+    leaderboardSize: number;
+    reviewMaxChars: number;
+  };
 }
 
 export interface CategoryView {
@@ -132,4 +140,54 @@ export interface Page<T> {
   total: number;
   limit: number;
   offset: number;
+}
+
+export interface ArticleVoteCounts {
+  articleId: string;
+  likes: number;
+  dislikes: number;
+  myVote: -1 | 0 | 1 | null;
+}
+
+export type ReviewStatus = 'published' | 'pending' | 'hidden';
+
+export interface CommunityReview {
+  id: string;
+  displayName: string | null;
+  rating: number;
+  body: string;
+  status: ReviewStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReviewSummary {
+  count: number;
+  average: number;
+  distribution: Array<{ rating: number; count: number }>;
+}
+
+export interface ReviewListResponse {
+  articleId: string;
+  summary: ReviewSummary;
+  reviews: CommunityReview[];
+  myReview: CommunityReview | null;
+  limit: number;
+  offset: number;
+}
+
+export interface ReviewSubmitResponse {
+  review: CommunityReview;
+  published: boolean;
+  message: string;
+  summary: ReviewSummary;
+}
+
+export interface LeaderboardEntry extends ArticleListItem {
+  likes: number;
+  dislikes: number;
+  reviewCount: number;
+  averageRating: number;
+  score: number;
+  rank: number;
 }

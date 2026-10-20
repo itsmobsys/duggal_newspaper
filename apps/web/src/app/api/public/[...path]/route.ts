@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { ApiError, apiFetch, clientIpFrom } from '@/lib/api';
-import { getUserSessionToken } from '@/lib/user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -55,12 +54,10 @@ async function proxy(
   }
 
   try {
-    const sessionToken = await getUserSessionToken();
     const result = await apiFetch<unknown>(`${path}${rawSearch(request.url)}`, {
       method,
       rawBody: rawBody || undefined,
       clientIp: clientIpFrom(request),
-      ...(sessionToken ? { headers: { 'x-user-session': sessionToken } } : {}),
     });
     if (result === null || result === undefined) {
       return new NextResponse(null, { status: 204, headers: { 'cache-control': 'no-store' } });

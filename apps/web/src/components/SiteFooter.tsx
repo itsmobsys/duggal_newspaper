@@ -41,6 +41,11 @@ export function SiteFooter({ settings, categories }: SiteFooterProps): React.JSX
               <li>
                 <Link href="/latest">Latest stories</Link>
               </li>
+              {settings.community.leaderboardEnabled ? (
+                <li>
+                  <Link href="/leaderboard">Weekly leaderboard</Link>
+                </li>
+              ) : null}
               <li>
                 <Link href="/editions">Daily editions</Link>
               </li>

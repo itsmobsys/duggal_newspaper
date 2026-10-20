@@ -19,6 +19,7 @@ export function defaultPublicSettings(): PublicSettings {
     },
     submissions: {
       anonymousAllowed: true,
+      discordIdentityAllowed: true,
       requireSourceUrl: false,
       minStoryChars: 120,
       maxStoryChars: 12000,
@@ -28,6 +29,13 @@ export function defaultPublicSettings(): PublicSettings {
     },
     content: { breakingEnabled: true },
     appearance: { frontPageLimit: 24, showAwards: true, tickerCount: 6 },
+    community: {
+      votingEnabled: true,
+      reviewsEnabled: true,
+      leaderboardEnabled: true,
+      leaderboardSize: 25,
+      reviewMaxChars: 1200,
+    },
   };
 }
 
@@ -85,6 +93,12 @@ export async function getPublicSettings(): Promise<PublicSettings> {
       case 'submissions.anonymous_allowed':
         values.submissions.anonymousAllowed = asBoolean(value, values.submissions.anonymousAllowed);
         break;
+      case 'submissions.discord_identity_allowed':
+        values.submissions.discordIdentityAllowed = asBoolean(
+          value,
+          values.submissions.discordIdentityAllowed,
+        );
+        break;
       case 'submissions.require_source_url':
         values.submissions.requireSourceUrl = asBoolean(value, values.submissions.requireSourceUrl);
         break;
@@ -129,6 +143,31 @@ export async function getPublicSettings(): Promise<PublicSettings> {
         break;
       case 'appearance.ticker_count':
         values.appearance.tickerCount = asNumber(value, values.appearance.tickerCount, 0, 12);
+        break;
+      case 'community.voting_enabled':
+        values.community.votingEnabled = asBoolean(value, values.community.votingEnabled);
+        break;
+      case 'community.reviews_enabled':
+        values.community.reviewsEnabled = asBoolean(value, values.community.reviewsEnabled);
+        break;
+      case 'community.leaderboard_enabled':
+        values.community.leaderboardEnabled = asBoolean(value, values.community.leaderboardEnabled);
+        break;
+      case 'community.leaderboard_size':
+        values.community.leaderboardSize = asNumber(
+          value,
+          values.community.leaderboardSize,
+          5,
+          100,
+        );
+        break;
+      case 'community.review_max_chars':
+        values.community.reviewMaxChars = asNumber(
+          value,
+          values.community.reviewMaxChars,
+          200,
+          3000,
+        );
         break;
       default:
         break;

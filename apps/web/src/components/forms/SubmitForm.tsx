@@ -19,7 +19,15 @@ import styles from './forms.module.css';
  * and again at the API, which is the only opinion that actually counts.
  */
 
-type FieldName = 'headline' | 'story' | 'categorySlug' | 'sourceUrl' | 'photos' | 'consent';
+type FieldName =
+  | 'headline'
+  | 'story'
+  | 'authorName'
+  | 'discordHandle'
+  | 'categorySlug'
+  | 'sourceUrl'
+  | 'photos'
+  | 'consent';
 
 type FieldErrors = Partial<Record<FieldName, string>>;
 
@@ -51,12 +59,13 @@ export interface SubmitFormProps {
   settings: PublicSettings['submissions'];
   categories: CategoryView[];
   timeZone: string;
-  user: { displayName: string; username: string; avatarUrl: string | null };
 }
 
 const FIELD_ORDER: FieldName[] = [
   'headline',
   'story',
+  'authorName',
+  'discordHandle',
   'categorySlug',
   'sourceUrl',
   'photos',
@@ -66,6 +75,8 @@ const FIELD_ORDER: FieldName[] = [
 const FIELD_LABELS: Record<FieldName, string> = {
   headline: 'Headline',
   story: 'Story',
+  authorName: 'Name',
+  discordHandle: 'Discord handle',
   categorySlug: 'Section',
   sourceUrl: 'Source link',
   photos: 'Photos',
@@ -75,6 +86,8 @@ const FIELD_LABELS: Record<FieldName, string> = {
 const API_FIELD_MAP: Record<string, FieldName | null> = {
   headline: 'headline',
   story: 'story',
+  authorName: 'authorName',
+  discordHandle: 'discordHandle',
   categorySlug: 'categorySlug',
   sourceUrl: 'sourceUrl',
   uploadIds: 'photos',
@@ -82,6 +95,7 @@ const API_FIELD_MAP: Record<string, FieldName | null> = {
   website: null,
   formStartedAt: null,
   anonymous: null,
+  identityMode: null,
   contactEmail: null,
 };
 
@@ -119,12 +133,7 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-export function SubmitForm({
-  settings,
-  categories,
-  timeZone,
-  user,
-}: SubmitFormProps): React.JSX.Element {
+export function SubmitForm({ settings, categories, timeZone }: SubmitFormProps): React.JSX.Element {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const websiteRef = useRef<HTMLInputElement | null>(null);
@@ -139,6 +148,8 @@ export function SubmitForm({
 
   const [headline, setHeadline] = useState('');
   const [story, setStory] = useState('');
+  const [authorName, setAuthorName] = useState('');
+  const [discordHandle, setDiscordHandle] = useState('');
   const [categorySlug, setCategorySlug] = useState(defaultCategory);
   const [sourceUrl, setSourceUrl] = useState('');
   const [anonymous, setAnonymous] = useState(false);
@@ -264,6 +275,20 @@ export function SubmitForm({
       next.story = `The desk needs at least ${settings.minStoryChars} characters — ${settings.minStoryChars - cleanStory.length} to go.`;
     } else if (cleanStory.length > settings.maxStoryChars) {
       next.story = `The desk stops reading at ${settings.maxStoryChars} characters. Cut ${cleanStory.length - settings.maxStoryChars}.`;
+    }
+
+    const cleanName = authorName.trim();
+    if (cleanName.length < 2) {
+      next.authorName = 'Tell us who filed this — at least 2 characters.';
+    } else if (cleanName.length > 60) {
+      next.authorName = 'Keep the name under 60 characters.';
+    }
+
+    if (settings.discordIdentityAllowed) {
+      const cleanHandle = discordHandle.trim();
+      if (cleanHandle && !/^[A-Za-z0-9._#-]{2,40}$/.test(cleanHandle)) {
+        next.discordHandle = 'Use 2–40 letters, numbers, dots, dashes or underscores.';
+      }
     }
 
     if (!categorySlug) {
@@ -436,6 +461,10 @@ export function SubmitForm({
         body: JSON.stringify({
           headline: headline.trim(),
           story: story.trim(),
+          authorName: authorName.trim(),
+          discordHandle: settings.discordIdentityAllowed
+            ? discordHandle.trim() || undefined
+            : undefined,
           categorySlug,
           sourceUrl: sourceUrl.trim() || undefined,
           anonymous: settings.anonymousAllowed ? anonymous : false,
@@ -660,32 +689,85 @@ export function SubmitForm({
       </div>
 
       <div className="field">
-        <p className="field-label">Filing as</p>
-        <div className={styles.identity}>
-          {user.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className={styles.identityAvatar}
-              src={user.avatarUrl}
-              alt=""
-              width={36}
-              height={36}
-              loading="lazy"
-            />
-          ) : (
-            <span className={styles.identityAvatar} aria-hidden="true" />
-          )}
-          <span className={styles.identityText}>
-            <strong>{user.displayName}</strong>
-            <span className={styles.identityHandle}>@{user.username}</span>
+        <label className="field-label" htmlFor="authorName">
+          <span>
+            {anonymous && settings.anonymousAllowed
+              ? 'Name (kept private)'
+              : 'Name (published if the story runs)'}
           </span>
-        </div>
-        <p className="field-help">
+        </label>
+        <input
+          id="authorName"
+          name="authorName"
+          className="input"
+          type="text"
+          value={authorName}
+          onChange={(event) => {
+            setAuthorName(event.target.value);
+            clearError('authorName');
+          }}
+          required
+          maxLength={60}
+          autoComplete="name"
+          placeholder={
+            anonymous && settings.anonymousAllowed
+              ? 'Only the desk sees this'
+              : 'As you want it printed'
+          }
+          aria-invalid={errors.authorName ? true : undefined}
+          aria-describedby={
+            errors.authorName ? 'authorName-help authorName-error' : 'authorName-help'
+          }
+        />
+        <p className="field-help" id="authorName-help">
           {anonymous && settings.anonymousAllowed
-            ? 'Your name is hidden from readers on this story. The desk still knows who filed it.'
-            : 'This is the byline if the story runs. Change it on Discord if that is not the name you want printed.'}
+            ? 'A real name is required, but it will not be printed. The desk needs to know who filed this.'
+            : 'This is the byline if the story runs. Use the name you want printed.'}
         </p>
+        {errors.authorName ? (
+          <p className="field-error" id="authorName-error">
+            {errors.authorName}
+          </p>
+        ) : null}
       </div>
+
+      {settings.discordIdentityAllowed ? (
+        <div className="field">
+          <label className="field-label" htmlFor="discordHandle">
+            <span>
+              Discord handle <span className={styles.optional}>Optional</span>
+            </span>
+          </label>
+          <input
+            id="discordHandle"
+            name="discordHandle"
+            className="input"
+            type="text"
+            value={discordHandle}
+            onChange={(event) => {
+              setDiscordHandle(event.target.value);
+              clearError('discordHandle');
+            }}
+            maxLength={40}
+            autoComplete="off"
+            aria-invalid={errors.discordHandle ? true : undefined}
+            aria-describedby={
+              errors.discordHandle ? 'discordHandle-help discordHandle-error' : 'discordHandle-help'
+            }
+          />
+          <p className="field-help" id="discordHandle-help">
+            Optional. Lets the desk credit or contact you on Discord.
+            {anonymous && settings.anonymousAllowed
+              ? ' While you are anonymous, it stays private.'
+              : ''}
+          </p>
+          {errors.discordHandle ? (
+            <p className="field-error" id="discordHandle-error">
+              {errors.discordHandle}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="field">
         <label className="field-label" htmlFor="categorySlug">
@@ -779,7 +861,7 @@ export function SubmitForm({
             <span>
               <strong>File anonymously</strong>
               <span className="field-help" style={{ display: 'block' }}>
-                Your name will not be published. The desk still sees which Discord account filed it.
+                Your name and Discord handle will not be published.
               </span>
             </span>
           </label>

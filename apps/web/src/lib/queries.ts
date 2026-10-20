@@ -1,14 +1,18 @@
 import { safeQuery, safeQueryOne } from './db';
-import { todayIn } from './format';
+import { todayIn, weekBoundsFor } from './format';
 import { excerptFrom } from './prose';
 import type {
   ArticleDetail,
   ArticleImageView,
   ArticleListItem,
+  ArticleVoteCounts,
   AwardView,
   CategoryView,
+  CommunityReview,
   EditionView,
+  LeaderboardEntry,
   Page,
+  ReviewSummary,
 } from './types';
 
 /** Raw shapes returned by libsql. Columns are snake_case; views are camelCase. */
@@ -72,6 +76,24 @@ interface AwardRow {
   article_id: string | null;
   auto_generated: number;
   sort_order: number;
+}
+
+interface ReviewRow {
+  id: string;
+  display_name: string | null;
+  rating: number;
+  body: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface LeaderboardRow extends ArticleRow {
+  likes: number;
+  dislikes: number;
+  review_count: number;
+  average_rating: number;
+  score: number;
 }
 
 const ARTICLE_COLUMNS = `
@@ -325,6 +347,135 @@ export async function getArticle(slug: string): Promise<ArticleDetail | null> {
     aiGenerated: row.ai_generated === 1,
     images: views,
   };
+}
+
+export async function getArticleVoteCounts(articleId: string): Promise<ArticleVoteCounts> {
+  const row = await safeQueryOne<{ likes: number; dislikes: number }>(
+    `SELECT
+       COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0) AS likes,
+       COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0) AS dislikes
+     FROM article_votes WHERE article_id = ?`,
+    [articleId],
+  );
+  return {
+    articleId,
+    likes: Number(row?.likes ?? 0),
+    dislikes: Number(row?.dislikes ?? 0),
+    myVote: null,
+  };
+}
+
+export async function getReviewSummary(articleId: string): Promise<ReviewSummary> {
+  const rows = await safeQuery<{ rating: number; count: number }>(
+    `SELECT rating, COUNT(*) AS count FROM article_reviews
+     WHERE article_id = ? AND status = 'published'
+     GROUP BY rating ORDER BY rating DESC`,
+    [articleId],
+  );
+  const byRating = new Map(rows.map((row) => [Number(row.rating), Number(row.count)]));
+  let count = 0;
+  let total = 0;
+  const distribution = [5, 4, 3, 2, 1].map((rating) => {
+    const ratingCount = byRating.get(rating) ?? 0;
+    count += ratingCount;
+    total += rating * ratingCount;
+    return { rating, count: ratingCount };
+  });
+  return {
+    count,
+    average: count > 0 ? Math.round((total / count) * 100) / 100 : 0,
+    distribution,
+  };
+}
+
+function toCommunityReview(row: ReviewRow): CommunityReview {
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    rating: Number(row.rating),
+    body: row.body,
+    status: row.status === 'pending' || row.status === 'hidden' ? row.status : 'published',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function listPublishedReviews(
+  articleId: string,
+  limit = 10,
+  offset = 0,
+): Promise<CommunityReview[]> {
+  const capped = Math.min(Math.max(limit, 1), 50);
+  const safeOffset = Math.max(offset, 0);
+  const rows = await safeQuery<ReviewRow>(
+    `SELECT id, display_name, rating, body, status, created_at, updated_at
+     FROM article_reviews
+     WHERE article_id = ? AND status = 'published'
+     ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [articleId, capped, safeOffset],
+  );
+  return rows.map(toCommunityReview);
+}
+
+/**
+ * The weekly leaderboard. Scores are calculated in the query so every render
+ * sees the same ranking: net votes plus a review term capped at ten reviews.
+ * Only stories published in the current site-timezone week are eligible.
+ */
+export async function getWeeklyLeaderboard(
+  limit: number,
+  timeZone: string,
+  now = new Date(),
+): Promise<LeaderboardEntry[]> {
+  const week = weekBoundsFor(now, timeZone);
+  const capped = Math.min(Math.max(limit, 1), 100);
+  const rows = await safeQuery<LeaderboardRow>(
+    `SELECT ${ARTICLE_COLUMNS},
+       COALESCE(v.likes, 0) AS likes,
+       COALESCE(v.dislikes, 0) AS dislikes,
+       COALESCE(r.review_count, 0) AS review_count,
+       COALESCE(r.average_rating, 0) AS average_rating,
+       (
+         (COALESCE(v.likes, 0) - COALESCE(v.dislikes, 0)) +
+         ((COALESCE(r.average_rating, 0) - 3) * MIN(COALESCE(r.review_count, 0), 10))
+       ) AS score
+     ${ARTICLE_JOIN}
+     LEFT JOIN (
+       SELECT article_id,
+         SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END) AS likes,
+         SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END) AS dislikes
+       FROM article_votes GROUP BY article_id
+     ) v ON v.article_id = a.id
+     LEFT JOIN (
+       SELECT article_id, COUNT(*) AS review_count, AVG(rating) AS average_rating
+       FROM article_reviews WHERE status = 'published' GROUP BY article_id
+     ) r ON r.article_id = a.id
+     WHERE a.status = 'published' AND a.published_at IS NOT NULL
+       AND a.published_at >= ? AND a.published_at < ?
+     ORDER BY score DESC,
+       (COALESCE(v.likes, 0) - COALESCE(v.dislikes, 0)) DESC,
+       COALESCE(r.average_rating, 0) DESC,
+       COALESCE(r.review_count, 0) DESC,
+       a.published_at DESC
+     LIMIT ?`,
+    [week.startIso, week.endIso, capped],
+  );
+
+  const items = await attachImages(rows);
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return rows.map((row, index) => {
+    const item = byId.get(row.id);
+    if (!item) throw new Error('Leaderboard row disappeared during image lookup.');
+    return {
+      ...item,
+      likes: Number(row.likes ?? 0),
+      dislikes: Number(row.dislikes ?? 0),
+      reviewCount: Number(row.review_count ?? 0),
+      averageRating: Number(row.average_rating ?? 0),
+      score: Number(row.score ?? 0),
+      rank: index + 1,
+    };
+  });
 }
 
 export async function getRelatedArticles(

@@ -96,6 +96,11 @@ export function hashUploadToken(token: string): string {
   return sha256Hex(`upload:${token}`);
 }
 
+/** Pseudonymous browser identity. The raw voter cookie never reaches the database. */
+export function hashVoterToken(token: string): string {
+  return sha256Hex(`voter:${token}`);
+}
+
 export interface SignedRequest {
   timestamp: string;
   signature: string;

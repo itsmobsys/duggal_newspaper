@@ -35,6 +35,7 @@ const ALLOWED_PREFIXES = new Set([
   'awards',
   'reports',
   'corrections',
+  'reviews',
   'editions',
   'publish-now',
   'audit',

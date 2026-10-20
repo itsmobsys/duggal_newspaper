@@ -27,6 +27,7 @@ interface StaticRoute {
 const STATIC_ROUTES: readonly StaticRoute[] = [
   { path: '', changeFrequency: 'daily', priority: 1 },
   { path: '/latest', changeFrequency: 'hourly', priority: 0.9 },
+  { path: '/leaderboard', changeFrequency: 'daily', priority: 0.6 },
   { path: '/editions', changeFrequency: 'daily', priority: 0.6 },
   { path: '/archive', changeFrequency: 'weekly', priority: 0.5 },
   { path: '/awards', changeFrequency: 'weekly', priority: 0.5 },
@@ -58,7 +59,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const absolute = (path: string): string => `${base}${path}`;
 
-  const entries: MetadataRoute.Sitemap = STATIC_ROUTES.map((route) => ({
+  const entries: MetadataRoute.Sitemap = STATIC_ROUTES.filter(
+    (route) => route.path !== '/leaderboard' || settings.community.leaderboardEnabled,
+  ).map((route) => ({
     url: absolute(route.path),
     lastModified: now,
     changeFrequency: route.changeFrequency,

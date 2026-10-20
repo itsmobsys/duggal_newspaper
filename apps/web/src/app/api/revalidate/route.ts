@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 const ALLOWED_EXACT = new Set([
   '/',
   '/latest',
+  '/leaderboard',
   '/archive',
   '/editions',
   '/awards',

@@ -28,13 +28,16 @@ const nextConfig = {
     // different origin. Production is HTTPS; local development talks to
     // http://localhost:8080, so only allow plain HTTP there.
     const devConnect = process.env.NODE_ENV === 'production' ? '' : ' http://localhost:* http://127.0.0.1:*';
+    // React's development refresh runtime evaluates strings, so strict CSP
+    // blocks hydration unless dev builds get unsafe-eval. Production stays strict.
+    const devScript = process.env.NODE_ENV === 'production' ? '' : " 'unsafe-eval'";
     const csp = [
       "default-src 'self'",
       "base-uri 'self'",
       "object-src 'none'",
       "frame-ancestors 'none'",
       "form-action 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' 'unsafe-inline'${devScript}`,
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self' data:",
       "img-src 'self' data: blob: https: http:",

@@ -16,6 +16,7 @@ export interface SettingDef {
     | 'Moderation'
     | 'AI'
     | 'Appearance'
+    | 'Community'
     | 'Storage';
   public?: boolean;
   min?: number;
@@ -32,6 +33,7 @@ export interface SettingsValues {
   'site.timezone': string;
 
   'submissions.anonymous_allowed': boolean;
+  'submissions.discord_identity_allowed': boolean;
   'submissions.require_source_url': boolean;
   'submissions.min_story_chars': number;
   'submissions.max_story_chars': number;
@@ -62,6 +64,12 @@ export interface SettingsValues {
   'appearance.front_page_limit': number;
   'appearance.show_awards': boolean;
   'appearance.ticker_count': number;
+
+  'community.voting_enabled': boolean;
+  'community.reviews_enabled': boolean;
+  'community.leaderboard_enabled': boolean;
+  'community.leaderboard_size': number;
+  'community.review_max_chars': number;
 
   'storage.soft_limit_mb': number;
   'storage.monthly_advanced_op_limit': number;
@@ -127,6 +135,14 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     default: true,
     label: 'Allow anonymous submissions',
     description: 'When off, the anonymous option is hidden and rejected server-side.',
+    group: 'Submissions',
+    public: true,
+  },
+  'submissions.discord_identity_allowed': {
+    type: 'boolean',
+    default: true,
+    label: 'Allow Discord identity',
+    description: 'Lets members add a Discord handle so the paper can @ them.',
     group: 'Submissions',
     public: true,
   },
@@ -354,6 +370,51 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     max: 12,
   },
 
+  'community.voting_enabled': {
+    type: 'boolean',
+    default: true,
+    label: 'Enable likes and dislikes',
+    description: 'Global switch for story votes. Existing counts are kept when turned off.',
+    group: 'Community',
+    public: true,
+  },
+  'community.reviews_enabled': {
+    type: 'boolean',
+    default: true,
+    label: 'Enable reader reviews',
+    description: 'Lets readers rate stories and leave a written review.',
+    group: 'Community',
+    public: true,
+  },
+  'community.leaderboard_enabled': {
+    type: 'boolean',
+    default: true,
+    label: 'Show the weekly leaderboard',
+    description: 'Turns the public /leaderboard page on or off.',
+    group: 'Community',
+    public: true,
+  },
+  'community.leaderboard_size': {
+    type: 'number',
+    default: 25,
+    label: 'Leaderboard size',
+    description: 'How many ranked stories to show each week.',
+    group: 'Community',
+    public: true,
+    min: 5,
+    max: 100,
+  },
+  'community.review_max_chars': {
+    type: 'number',
+    default: 1200,
+    label: 'Maximum review length',
+    description: 'Characters. Shorter reviews are easier to moderate and read.',
+    group: 'Community',
+    public: true,
+    min: 200,
+    max: 3000,
+  },
+
   // Vercel Blob Hobby is free but hard-capped (1 GB, 2,000 advanced operations
   // per month); going over locks the store for 30 days. These thresholds keep
   // the paper comfortably inside the allowance. Photos are refused past the
@@ -539,6 +600,7 @@ export interface PublicSettings {
   };
   submissions: {
     anonymousAllowed: boolean;
+    discordIdentityAllowed: boolean;
     minStoryChars: number;
     maxStoryChars: number;
     maxHeadlineChars: number;
@@ -547,6 +609,13 @@ export interface PublicSettings {
   };
   content: { breakingEnabled: boolean };
   appearance: { frontPageLimit: number; showAwards: boolean; tickerCount: number };
+  community: {
+    votingEnabled: boolean;
+    reviewsEnabled: boolean;
+    leaderboardEnabled: boolean;
+    leaderboardSize: number;
+    reviewMaxChars: number;
+  };
 }
 
 export function toPublicSettings(settings: Settings): PublicSettings {
@@ -561,6 +630,7 @@ export function toPublicSettings(settings: Settings): PublicSettings {
     },
     submissions: {
       anonymousAllowed: settings['submissions.anonymous_allowed'],
+      discordIdentityAllowed: settings['submissions.discord_identity_allowed'],
       minStoryChars: settings['submissions.min_story_chars'],
       maxStoryChars: settings['submissions.max_story_chars'],
       maxHeadlineChars: settings['submissions.max_headline_chars'],
@@ -572,6 +642,13 @@ export function toPublicSettings(settings: Settings): PublicSettings {
       frontPageLimit: settings['appearance.front_page_limit'],
       showAwards: settings['appearance.show_awards'],
       tickerCount: settings['appearance.ticker_count'],
+    },
+    community: {
+      votingEnabled: settings['community.voting_enabled'],
+      reviewsEnabled: settings['community.reviews_enabled'],
+      leaderboardEnabled: settings['community.leaderboard_enabled'],
+      leaderboardSize: settings['community.leaderboard_size'],
+      reviewMaxChars: settings['community.review_max_chars'],
     },
   };
 }

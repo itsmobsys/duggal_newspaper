@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { formatDate, weekdayFor } from '@/lib/format';
 import type { CategoryView, PublicSettings } from '@/lib/types';
-import { AccountMenu } from './AccountMenu';
 import { GitHubLink } from './GitHubLink';
 
 export interface MastheadProps {
@@ -31,8 +30,6 @@ export function Masthead({ settings, categories, editionDate }: MastheadProps): 
           <Link href="/submit">Submit a story</Link>
           <span className="dot" aria-hidden="true" />
           <Link href="/status">Track submission</Link>
-          <span className="dot" aria-hidden="true" />
-          <AccountMenu />
           <span className="dot" aria-hidden="true" />
           <GitHubLink />
         </div>
@@ -67,6 +64,13 @@ export function Masthead({ settings, categories, editionDate }: MastheadProps): 
                 Latest
               </Link>
             </li>
+            {settings.community.leaderboardEnabled ? (
+              <li>
+                <Link className="nav-link" href="/leaderboard">
+                  Leaderboard
+                </Link>
+              </li>
+            ) : null}
             <li>
               <Link className="nav-link" href="/editions">
                 Editions

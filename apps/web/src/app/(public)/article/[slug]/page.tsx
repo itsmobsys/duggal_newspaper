@@ -5,11 +5,21 @@ import { ArticleBody } from '@/components/ArticleBody';
 import { ArticleCard } from '@/components/ArticleCard';
 import { ArticleFigure } from '@/components/ArticleFigure';
 import { Byline } from '@/components/Byline';
+import { ReviewSection } from '@/components/community/ReviewSection';
+import { VoteBar } from '@/components/community/VoteBar';
 import { JsonLd } from '@/components/JsonLd';
 import { SectionHeading } from '@/components/SectionHeading';
 import { formatDateShort } from '@/lib/format';
 import { clampHeadline } from '@/lib/prose';
-import { getArticle, getEditionArticles, getRelatedArticles, listArticles } from '@/lib/queries';
+import {
+  getArticle,
+  getArticleVoteCounts,
+  getEditionArticles,
+  getRelatedArticles,
+  getReviewSummary,
+  listArticles,
+  listPublishedReviews,
+} from '@/lib/queries';
 import { getPublicSettings, siteUrl } from '@/lib/settings';
 import styles from './page.module.css';
 
@@ -92,9 +102,12 @@ export default async function ArticlePage({
   const [leadImage, ...remainingImages] = article.images;
   const source = article.sourceUrl ? safeSource(article.sourceUrl) : null;
 
-  const [related, editionPool] = await Promise.all([
+  const [related, editionPool, voteCounts, reviewSummary, initialReviews] = await Promise.all([
     getRelatedArticles(article, 3),
     getEditionArticles(article.editionDate),
+    getArticleVoteCounts(article.id),
+    getReviewSummary(article.id),
+    listPublishedReviews(article.id, 10, 0),
   ]);
 
   const editionStories = editionPool.filter((item) => item.id !== article.id).slice(0, 5);
@@ -126,6 +139,17 @@ export default async function ArticlePage({
     url: articleUrl,
     inLanguage: 'en-IN',
     isAccessibleForFree: true,
+    ...(settings.community.reviewsEnabled && reviewSummary.count > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: reviewSummary.average,
+            reviewCount: reviewSummary.count,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
   };
 
   return (
@@ -225,6 +249,13 @@ export default async function ArticlePage({
             </aside>
           ) : null}
 
+          <VoteBar
+            articleId={article.id}
+            initialLikes={voteCounts.likes}
+            initialDislikes={voteCounts.dislikes}
+            enabled={settings.community.votingEnabled}
+          />
+
           <div className={styles.actions}>
             <Link
               className="button button--sm button--ghost"
@@ -239,6 +270,15 @@ export default async function ArticlePage({
               Request a correction
             </Link>
           </div>
+
+          <ReviewSection
+            articleId={article.id}
+            initialSummary={reviewSummary}
+            initialReviews={initialReviews}
+            enabled={settings.community.reviewsEnabled}
+            maxChars={settings.community.reviewMaxChars}
+            timeZone={timeZone}
+          />
         </article>
 
         <aside className="article-aside" aria-label="Story sidebar">

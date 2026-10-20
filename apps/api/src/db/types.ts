@@ -193,29 +193,28 @@ export interface AwardRow {
   updated_at: string;
 }
 
-export interface MemberRow {
+export interface ArticleVoteRow {
   id: string;
-  display_name: string;
-  discord_username: string | null;
-  discord_id: string | null;
-  global_name: string | null;
-  avatar_url: string | null;
-  submission_count: number;
-  published_count: number;
+  article_id: string;
+  voter_hash: string;
+  value: -1 | 1;
   created_at: string;
   updated_at: string;
 }
 
-export interface UserSessionRow {
+export interface ArticleReviewRow {
   id: string;
-  member_id: string;
-  token_hash: string;
-  created_at: string;
-  last_seen_at: string;
-  expires_at: string;
-  revoked_at: string | null;
+  article_id: string;
+  voter_hash: string;
+  display_name: string | null;
+  rating: number;
+  body: string;
+  status: 'published' | 'pending' | 'hidden';
+  moderation_reason: string | null;
   ip_hash: string | null;
   user_agent: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AdminUserRow {

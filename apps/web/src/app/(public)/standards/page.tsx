@@ -18,6 +18,7 @@ const SECTIONS: Array<{ id: string; label: string }> = [
   { id: 'photo-policy', label: 'Photo policy' },
   { id: 'corrections', label: 'Corrections' },
   { id: 'reporting', label: 'Reporting a problem' },
+  { id: 'votes-and-reviews', label: 'Votes and reviews' },
   { id: 'anonymity-and-privacy', label: 'Anonymity and privacy' },
   { id: 'ai-failures', label: 'When the AI fails' },
   { id: 'contact', label: 'Contact' },
@@ -204,6 +205,28 @@ export default async function StandardsPage(): Promise<React.JSX.Element> {
             <Link className="button button--sm button--ghost" href="/report">
               Report a problem
             </Link>
+          </p>
+        </section>
+
+        <section aria-labelledby="votes-and-reviews">
+          <h2 id="votes-and-reviews">Votes and reviews</h2>
+          <p>
+            Readers can like or dislike a story and leave a star rating with a written review. No
+            account is needed. One browser gets one vote and one review per story, tracked by a
+            random httpOnly cookie; the server stores only a hash of that cookie, never the token
+            itself. Both can be changed or removed, and clearing cookies starts a fresh identity.
+          </p>
+          <p>
+            Reviews publish immediately when they pass the spam checks. Reviews with links, banned
+            words or other spam signals are held for a human. A moderator can hide or delete a
+            review; hiding keeps the record for audit and removes it from the story and the weekly{' '}
+            <Link href="/leaderboard">leaderboard</Link>. Display names are optional, and blank
+            names appear as &ldquo;Anonymous reader.&rdquo;
+          </p>
+          <p>
+            The weekly table counts net votes plus a review term capped at ten reviews, so a pile-on
+            has a limited effect. Only stories published in the current Monday-to-Sunday week in the
+            newsroom timezone, and only published reviews, are ranked.
           </p>
         </section>
 
