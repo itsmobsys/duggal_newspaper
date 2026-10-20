@@ -19,7 +19,6 @@ export function defaultPublicSettings(): PublicSettings {
     },
     submissions: {
       anonymousAllowed: true,
-      discordIdentityAllowed: true,
       requireSourceUrl: false,
       minStoryChars: 120,
       maxStoryChars: 12000,
@@ -85,12 +84,6 @@ export async function getPublicSettings(): Promise<PublicSettings> {
         break;
       case 'submissions.anonymous_allowed':
         values.submissions.anonymousAllowed = asBoolean(value, values.submissions.anonymousAllowed);
-        break;
-      case 'submissions.discord_identity_allowed':
-        values.submissions.discordIdentityAllowed = asBoolean(
-          value,
-          values.submissions.discordIdentityAllowed,
-        );
         break;
       case 'submissions.require_source_url':
         values.submissions.requireSourceUrl = asBoolean(value, values.submissions.requireSourceUrl);

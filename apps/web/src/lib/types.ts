@@ -14,7 +14,6 @@ export interface PublicSettings {
   };
   submissions: {
     anonymousAllowed: boolean;
-    discordIdentityAllowed: boolean;
     requireSourceUrl: boolean;
     minStoryChars: number;
     maxStoryChars: number;

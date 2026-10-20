@@ -193,6 +193,31 @@ export interface AwardRow {
   updated_at: string;
 }
 
+export interface MemberRow {
+  id: string;
+  display_name: string;
+  discord_username: string | null;
+  discord_id: string | null;
+  global_name: string | null;
+  avatar_url: string | null;
+  submission_count: number;
+  published_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserSessionRow {
+  id: string;
+  member_id: string;
+  token_hash: string;
+  created_at: string;
+  last_seen_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  ip_hash: string | null;
+  user_agent: string | null;
+}
+
 export interface AdminUserRow {
   id: string;
   email: string;

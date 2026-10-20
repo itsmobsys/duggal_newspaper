@@ -17,7 +17,7 @@ Built for a Discord community. Runs on free tiers. MIT licensed.
 
 | | |
 | --- | --- |
-| **Website submissions** | Headline, story, author, optional Discord handle, up to 4 photos, category, source link, anonymity. No Discord bot and no OAuth required. |
+| **Website submissions** | **Login with Discord** (OAuth2 `identify` scope only — no email), then headline, story, up to 4 photos, category, source link and anonymity. The API rejects anonymous requests too. No Discord bot. |
 | **AI newsroom** | Supplied by NVIDIA Nemotron (`nvidia/nemotron-3.5-super-vl-120b-a12b`). Rewrites copy, writes headlines, deks and tags, picks a category, and spots spam. |
 | **Autonomy** | Routine stories publish themselves. Only concrete abuse and illegal content is held for a human: credible threats, weapon/explosive/drug/self-harm instructions, private personal data, minors or non-consensual sexual content, protected-group slurs, and active fraud or phishing. Tone, profanity, gossip, sarcasm, roasts, opinions and unverified allegations are **not** holds. Nothing is silently dropped. |
 | **Daily editions** | An archive snapshot, not a publish queue: the AI assembles the edition dated for the next day at **23:00 IST**, live at **00:00 IST**. Stories do **not** wait for it — an approved story is on the live site within seconds. A deterministic fallback layout is used if the AI is unavailable. |
@@ -176,10 +176,18 @@ API_BASE_URL=http://localhost:8080
 SERVICE_SECRET=<same value as the API>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 REVALIDATE_SECRET=<same value as the API>
+DISCORD_CLIENT_ID=<from the Discord developer portal>
+DISCORD_CLIENT_SECRET=<from the Discord developer portal>
+DISCORD_REDIRECT_URI=http://localhost:3000/api/auth/discord/callback
 ```
 
 `SERVICE_SECRET` and `REVALIDATE_SECRET` **must be byte-identical** on both
 sides. `API_BASE_URL` has no `NEXT_PUBLIC_` prefix on purpose: it is server-only.
+
+Login needs a Discord application; the redirect URI above must be registered
+exactly. Submissions are login-only, so without `DISCORD_*` you can read the
+site and the admin console but cannot file a story through the form. The API
+still creates submissions with a valid session, which is what the tests use.
 
 ### 5. Run
 
@@ -232,6 +240,7 @@ Open <http://localhost:3000> and <http://localhost:3000/admin>.
 | `WORKER_TICK_TOKEN` | yes | Shared with GitHub Actions (≥24 chars) |
 | `SESSION_PEPPER` | yes | Admin session hashing (≥24 chars) |
 | `ADMIN_SESSION_TTL_HOURS` | no | Default 72 |
+| `USER_SESSION_TTL_HOURS` | no | Reader login lifetime, default 720 (30 days) |
 | `BLOB_READ_WRITE_TOKEN` | prod | Vercel Blob store token. Public and private stores both work; a private store is detected automatically and photos are served through `GET /media/*`. |
 | `BLOB_PRIVATE_READ_WRITE_TOKEN` | no | Separate private store for originals (recommended; otherwise originals go to the main store) |
 | `BLOB_CACHE_MAX_AGE_SECONDS` | no | Default 31536000 (one year) |
@@ -259,6 +268,9 @@ Open <http://localhost:3000> and <http://localhost:3000/admin>.
 | `API_BASE_URL` | yes | Render URL, **server-only** |
 | `SERVICE_SECRET` | yes | Byte-identical to Render |
 | `REVALIDATE_SECRET` | yes | Byte-identical to Render |
+| `DISCORD_CLIENT_ID` | for login | Discord application client ID |
+| `DISCORD_CLIENT_SECRET` | for login | **Server-only.** Never expose or commit |
+| `DISCORD_REDIRECT_URI` | no | Defaults to `<site>/api/auth/discord/callback` |
 | `NEXT_PUBLIC_SITE_URL` | yes | Canonical site URL, no trailing slash |
 | `NEXT_PUBLIC_MEDIA_BASE_URL` | no | Documentation/preview only |
 
@@ -446,22 +458,51 @@ keep the in-process worker enabled.
 
 ---
 
-## Discord identity (no bot)
+## Discord login and identity
 
-The paper deliberately has **no Discord bot and no OAuth app**. Asking for a bot
-token would add a moving part and a permission prompt for no reader benefit.
+Readers sign in with Discord (**OAuth2 authorization code + PKCE, `identify`
+scope only**). The site never asks for email, friends, servers or any other
+permission, and there is still no bot.
 
-- The submission form has an optional **Discord handle** field.
-- Readers type the handle they want credited (e.g. `@badmosh_42`).
-- If the desk verifies nothing, it credits nothing: the handle is displayed only
-  when the submitter supplies it and does not choose anonymity.
-- Anonymous submissions never publish the name or handle, but the API still
-  stores them privately for moderation and abuse handling.
+### Set it up
+
+1. Open <https://discord.com/developers/applications> → **New Application**.
+2. **OAuth2 → Redirects** → add `https://<your-site>/api/auth/discord/callback`
+   (for local work: `http://localhost:3000/api/auth/discord/callback`).
+3. Copy the **Client ID** and **Client Secret** into the Vercel environment as
+   `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`. Set
+   `DISCORD_REDIRECT_URI` only if you use a different path.
+4. Redeploy. Without these values the Login button reports that login is not
+   configured; nothing else changes.
+
+### What happens on login
+
+- `/api/auth/discord` creates a random `state` + PKCE verifier, stores them in a
+  short-lived httpOnly cookie, and redirects to Discord.
+- The callback checks `state`, exchanges the code **server-side** with the client
+  secret, then calls `GET /users/@me` with the returned token.
+- Only the Discord ID, username, display name and avatar URL come back. The
+  browser never supplies identity fields, and the API ignores any it sends.
+- The site asks the API to mint a session. The API stores only a SHA-256 hash of
+  the token in `user_sessions` and returns the raw token once; the site puts it
+  in the httpOnly, `SameSite=Lax`, `Secure` (in production) cookie `dbd_user`.
+- Sessions expire after `USER_SESSION_TTL_HOURS` (default 720 = 30 days), are
+  revalidated on every request, and are revoked on logout.
+- `?next=` redirects are restricted to same-site relative paths.
+
+### Submissions
+
+- `POST /public/submissions` and `POST /public/uploads/init` both require a
+  valid session. The API answers `401 AUTH_REQUIRED` otherwise, so the browser
+  form is a convenience, not the security boundary.
+- The submission is linked to the authenticated member (`member_id`) and stores
+  the server-fetched display name and username. Anonymous submissions publish
+  as **Anonymous** but the desk can still see which account filed them.
 - Public contact is the Discord invite/username configured in
   **Admin → Settings → `site.contact_discord`**.
 
-This keeps identity self-declared and unverified, which is the honest position
-for an anonymous community paper. Do not present it as verification.
+Discord tells us the account exists, not that the person is who they claim to
+be offline. Do not present it as verification of anything else.
 
 ---
 
@@ -603,6 +644,12 @@ Vercel Blob token. Nothing here requires a paid plan to run locally.
   metadata, and given random object keys.
 - Admin sessions are hashed in the database and carried in an `HttpOnly`,
   `SameSite=Lax`, `Secure` cookie. The token never reaches client JavaScript.
+- Reader logins use Discord OAuth2 with `state` + PKCE and the `identify` scope.
+  The API stores only a hash of the session token in `user_sessions`, expires it
+  after `USER_SESSION_TTL_HOURS`, and revalidates it on every write. Submissions
+  and upload tickets require a session; the API decides, not the form.
+  Identity fields are read from Discord server-side and never from the request
+  body, so a forged `discordId` or display name is ignored.
 - CSRF uses double-submit; the BFF checks `Origin` on every mutation.
 - Uploads and public writes are rate-limited per IP hash. Rate limits are
   cleaned up hourly.

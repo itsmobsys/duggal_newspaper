@@ -32,7 +32,6 @@ export interface SettingsValues {
   'site.timezone': string;
 
   'submissions.anonymous_allowed': boolean;
-  'submissions.discord_identity_allowed': boolean;
   'submissions.require_source_url': boolean;
   'submissions.min_story_chars': number;
   'submissions.max_story_chars': number;
@@ -128,14 +127,6 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     default: true,
     label: 'Allow anonymous submissions',
     description: 'When off, the anonymous option is hidden and rejected server-side.',
-    group: 'Submissions',
-    public: true,
-  },
-  'submissions.discord_identity_allowed': {
-    type: 'boolean',
-    default: true,
-    label: 'Allow Discord identity',
-    description: 'Lets members add a Discord handle so the paper can @ them.',
     group: 'Submissions',
     public: true,
   },
@@ -548,7 +539,6 @@ export interface PublicSettings {
   };
   submissions: {
     anonymousAllowed: boolean;
-    discordIdentityAllowed: boolean;
     minStoryChars: number;
     maxStoryChars: number;
     maxHeadlineChars: number;
@@ -571,7 +561,6 @@ export function toPublicSettings(settings: Settings): PublicSettings {
     },
     submissions: {
       anonymousAllowed: settings['submissions.anonymous_allowed'],
-      discordIdentityAllowed: settings['submissions.discord_identity_allowed'],
       minStoryChars: settings['submissions.min_story_chars'],
       maxStoryChars: settings['submissions.max_story_chars'],
       maxHeadlineChars: settings['submissions.max_headline_chars'],

@@ -7,6 +7,10 @@ export const SITE_DESCRIPTION_FALLBACK =
 
 /** Admin session cookie (httpOnly, set by the BFF). */
 export const COOKIE_ADMIN_SESSION = 'dbd_admin';
+/** Reader session cookie (httpOnly, set by the BFF after Discord OAuth). */
+export const COOKIE_USER_SESSION = 'dbd_user';
+/** Short-lived OAuth state + PKCE verifier cookie. */
+export const COOKIE_OAUTH_STATE = 'dbd_oauth';
 /** CSRF double-submit cookie (readable by the admin UI). */
 export const COOKIE_CSRF = 'dbd_csrf';
 /** Header the admin UI echoes back for the CSRF double-submit check. */
@@ -15,6 +19,12 @@ export const CSRF_HEADER = 'x-csrf-token';
 export const REVALIDATE_HEADER = 'x-revalidate-secret';
 
 export const ADMIN_SESSION_MAX_AGE_SECONDS = 60 * 60 * 72;
+
+/** Fallback reader session lifetime; the API decides the real expiry. */
+export const USER_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+/** How long a pending OAuth handshake may sit before it is rejected. */
+export const OAUTH_STATE_MAX_AGE_SECONDS = 60 * 10;
 
 /** Number of stories per listing page. */
 export const PAGE_SIZE = 12;

@@ -64,6 +64,7 @@ const rawSchema = z.object({
   WORKER_TICK_TOKEN: z.string().optional(),
   SESSION_PEPPER: z.string().optional(),
   ADMIN_SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
+  USER_SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(2160).default(720),
 
   // Vercel Blob (Hobby) - the public store that serves every site photo.
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
@@ -193,6 +194,7 @@ export interface AppConfig {
   workerTickToken: string;
   sessionPepper: string;
   adminSessionTtlHours: number;
+  userSessionTtlHours: number;
   storage: {
     mode: 'blob' | 'local';
     /** Token for the public Blob store that serves site photos. */
@@ -255,6 +257,7 @@ export const config: AppConfig = {
   workerTickToken,
   sessionPepper,
   adminSessionTtlHours: raw.ADMIN_SESSION_TTL_HOURS,
+  userSessionTtlHours: raw.USER_SESSION_TTL_HOURS,
   storage: {
     mode: blobConfigured ? 'blob' : 'local',
     blobToken: raw.BLOB_READ_WRITE_TOKEN || undefined,

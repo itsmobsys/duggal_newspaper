@@ -4,6 +4,7 @@ import { SubmitForm } from '@/components/forms/SubmitForm';
 import { pluralise } from '@/lib/format';
 import { getCategories } from '@/lib/queries';
 import { getPublicSettings } from '@/lib/settings';
+import { getCurrentUser } from '@/lib/user';
 import styles from '@/components/forms/forms.module.css';
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
 export default async function SubmitPage(): Promise<React.JSX.Element> {
   const settings = await getPublicSettings();
   const categories = await getCategories();
+  const user = await getCurrentUser();
   const submissions = settings.submissions;
 
   return (
@@ -32,11 +34,34 @@ export default async function SubmitPage(): Promise<React.JSX.Element> {
 
       <div className={`section ${styles.split}`}>
         <div>
-          <SubmitForm
-            settings={submissions}
-            categories={categories}
-            timeZone={settings.site.timezone}
-          />
+          {user ? (
+            <SubmitForm
+              settings={submissions}
+              categories={categories}
+              timeZone={settings.site.timezone}
+              user={user}
+            />
+          ) : (
+            <div className={styles.card}>
+              <h2 className={styles.cardTitle}>Sign in to file</h2>
+              <p className={styles.note}>
+                Every story is tied to a Discord account, even when it is published anonymously.
+                That is the whole anti-spam policy and most of the legal one.
+              </p>
+              <p>
+                <a
+                  className="button button--primary"
+                  href={`/api/auth/discord?next=${encodeURIComponent('/submit')}`}
+                >
+                  Login with Discord
+                </a>
+              </p>
+              <p className={styles.note}>
+                The desk asks Discord for your user ID, username, display name and avatar. No email,
+                no friends list, no servers — just enough to know who filed the story.
+              </p>
+            </div>
+          )}
         </div>
 
         <aside className={styles.aside} aria-labelledby="filing-rules">
@@ -76,14 +101,8 @@ export default async function SubmitPage(): Promise<React.JSX.Element> {
                 <strong>Anonymity</strong>
                 {submissions.anonymousAllowed
                   ? ' Available. Your name and Discord handle stay private; your account of events does not.'
-                  : ' Closed right now. The name you give will be considered for publication.'}
+                  : ' Closed right now. Your Discord display name will be considered for publication.'}
               </li>
-              {submissions.discordIdentityAllowed ? (
-                <li>
-                  <strong>Discord</strong>A handle is optional. It lets the desk credit or contact
-                  you without guessing which of the eleven identical avatars you are.
-                </li>
-              ) : null}
               <li>
                 <strong>One at a time</strong>
                 Repeat filings are rate-limited per connection. Filing the same story twice does not
