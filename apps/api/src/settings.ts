@@ -239,14 +239,16 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     type: 'boolean',
     default: true,
     label: 'Generate a daily edition',
-    description: 'At the configured hour, the AI editor writes the front-page edition note.',
+    description:
+      'The AI editor assembles the next edition at the edition hour so it is live at midnight.',
     group: 'Autonomy',
   },
   'autonomy.edition_hour': {
     type: 'number',
-    default: 20,
-    label: 'Edition hour (newsroom time)',
-    description: '0-23. Editions are generated on the first worker tick at or after this hour.',
+    default: 23,
+    label: 'Edition build hour (newsroom time)',
+    description:
+      '0-23. When the AI starts assembling the edition that goes live at the next midnight. 23 = 11 PM IST, ready by 12 AM.',
     group: 'Autonomy',
     min: 0,
     max: 23,

@@ -32,8 +32,8 @@ import { checkModelAvailability } from '../services/ai/client.js';
 import { AiResultSchema, type AiResult } from '../services/ai/schema.js';
 import { publishArticle, revalidateWeb } from '../services/publishing.js';
 import { enqueueJob, listJobs, queueStats, retryJob } from '../services/queue.js';
-import { getSubmissionWithImages } from '../services/process-submission.js';
-import { runWorkerTick } from '../services/worker.js';
+import { getSubmissionWithImages, AI_PAUSED_REASON } from '../services/process-submission.js';
+import { kickWorkerTick, runWorkerTick } from '../services/worker.js';
 import { clientIpHash, parsePagination, writeAudit, type AdminContext } from './helpers.js';
 
 const LoginSchema = z.object({
@@ -103,6 +103,19 @@ const ReportActionSchema = z.object({
 });
 
 const SettingsSchema = z.record(z.unknown());
+
+/**
+ * "Build the paper now" takes no meaningful options: it processes every waiting
+ * submission and rebuilds the edition the front page is currently showing.
+ * `editionDate` exists for maintenance (rebuilding yesterday after a bad run).
+ */
+const PublishNowSchema = z.object({
+  editionDate: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
 
 function parseReviewReasons(value: string | null): string[] {
   if (!value) return [];
@@ -740,6 +753,117 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
     });
     void revalidateWeb(['/', `/article/${article.slug}`]);
     return { ok: true };
+  });
+
+  // ------------------------------------------------------------ publish now
+  /**
+   * One click for "process everything waiting and rebuild the paper".
+   *
+   * The heavy work (AI rewrites, edition assembly) runs on the durable queue,
+   * never inside this HTTP request: Render and Vercel free tiers both kill
+   * long requests. The handler only requeues, schedules, kicks a tick and
+   * revalidates. The build job waits for the submission queue to drain (up to
+   * 15 minutes) so a fresh story cannot miss the edition it triggered.
+   */
+  app.post('/admin/publish-now', async (request) => {
+    const ctx = await requireAdmin(db, request);
+    const body = PublishNowSchema.parse(request.body ?? {});
+    const settings = await loadSettings(db);
+    const date = body.editionDate ?? editionDateFor(new Date(), settings['site.timezone']);
+    const queuedAt = Date.now();
+    const aiConfigured = Boolean(config.ai.apiKey);
+
+    // Parked because the key was missing — safe to wake only when a key exists.
+    const paused = aiConfigured
+      ? await db.all<{ id: string }>(
+          `SELECT id FROM submissions
+           WHERE status = 'queued_review' AND review_reason = ?
+           ORDER BY created_at ASC LIMIT 25`,
+          [AI_PAUSED_REASON],
+        )
+      : [];
+    const failed = aiConfigured
+      ? await db.all<{ id: string }>(
+          `SELECT id FROM submissions
+           WHERE status = 'failed' AND article_id IS NULL
+           ORDER BY updated_at ASC LIMIT 25`,
+        )
+      : [];
+    const received = await db.all<{ id: string }>(
+      `SELECT id FROM submissions
+       WHERE status = 'received' AND article_id IS NULL
+       ORDER BY created_at ASC LIMIT 25`,
+    );
+
+    const ids = new Set<string>();
+    for (const row of [...paused, ...failed, ...received]) ids.add(row.id);
+
+    for (const id of ids) {
+      await db.run(
+        `UPDATE submissions SET status = 'received', review_reason = NULL,
+           review_reasons = NULL, ai_last_error = NULL, updated_at = ?
+         WHERE id = ? AND status != 'published'`,
+        [nowIso(), id],
+      );
+      await enqueueJob(db, {
+        type: 'process_submission',
+        payload: { submissionId: id, manual: true },
+        idempotencyKey: `process:${id}`,
+        priority: 5,
+      });
+    }
+
+    // At most one manual build per minute per edition — double clicks are a
+    // no-op instead of a second (paid) AI call.
+    const minuteBucket = Math.floor(Date.now() / 60_000);
+    await enqueueJob(db, {
+      type: 'build_edition',
+      payload: { date, force: true, afterQueue: true, queuedAt },
+      idempotencyKey: `edition:${date}:manual:${minuteBucket}`,
+      once: true,
+      // Lower than process_submission (5): one tick can rewrite the stories
+      // first, then assemble the paper they belong to.
+      priority: 2,
+    });
+
+    // Two kicks: one to start rewriting immediately, one to pick up the build
+    // after the queue has had time to drain. The external 5-minute pinger and
+    // the job's own defer handle anything slower than this.
+    kickWorkerTick(5, 12);
+    kickWorkerTick(60_000, 12);
+
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: 'news.publish_now',
+      targetType: 'edition',
+      targetId: date,
+      detail: {
+        requeued: ids.size,
+        parked: paused.length,
+        failed: failed.length,
+        aiConfigured,
+      },
+      ipHash: clientIpHash(request),
+    });
+
+    // Refresh what is already published right now; publishing each story will
+    // revalidate again as it lands.
+    void revalidateWeb(['/', '/latest', '/editions', `/edition/${date}`]);
+
+    return {
+      ok: true,
+      editionDate: date,
+      requeued: ids.size,
+      parked: paused.length,
+      failed: failed.length,
+      aiConfigured,
+      workerTickRequested: config.worker.enabled,
+      buildFollowUpSeconds: 60,
+      message:
+        ids.size > 0
+          ? `Queued ${ids.size} submission${ids.size === 1 ? '' : 's'}. The edition rebuilds automatically once they are processed.`
+          : 'Nothing was waiting. The edition rebuild is queued.',
+    };
   });
 
   // -------------------------------------------------------------------- jobs

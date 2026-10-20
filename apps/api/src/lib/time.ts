@@ -34,6 +34,18 @@ export function editionDateFor(date: Date, timeZone: string): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * The edition a story belongs to.
+ *
+ * A story written on Monday is printed in the Tuesday edition: the newsroom
+ * assembles that edition late on Monday evening and it goes live at midnight.
+ * Tagging the story with the date it will actually be read keeps the edition
+ * query an exact match (`edition_date = ?`) instead of a fragile time window.
+ */
+export function nextEditionDate(date: Date, timeZone: string): string {
+  return editionDateFor(new Date(date.getTime() + 24 * 3600 * 1000), timeZone);
+}
+
 export function localHourFor(date: Date, timeZone: string): number {
   const hour = new Intl.DateTimeFormat('en-GB', {
     timeZone,

@@ -1,0 +1,119 @@
+/* Front-page-only furniture. Global design tokens live in globals.css. */
+
+.editionBanner {
+  display: grid;
+  gap: 4px;
+  border-bottom: 3px double var(--rule);
+  padding: var(--space-4) 0;
+}
+
+.bannerKicker {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.bannerTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  line-height: 1.08;
+}
+
+.bannerTitle a {
+  text-decoration: none;
+}
+
+.bannerTitle a:hover {
+  color: var(--accent);
+}
+
+.bannerSummary {
+  margin: 0;
+  max-width: 78ch;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.bannerMeta {
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.bannerMeta a {
+  color: var(--ink);
+}
+
+.railPanel {
+  display: grid;
+  gap: 10px;
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.railPanel + .railPanel {
+  margin-top: var(--space-5);
+}
+
+.railPanel h2 {
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--rule);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.panelLead {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.panelText {
+  margin: 0;
+  color: var(--ink-mute);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.railTopics {
+  margin: 0;
+}
+
+.ctaPanel {
+  border: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--surface);
+  padding: var(--space-4);
+}
+
+.ctaPanel h2 {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.howItWorks {
+  margin: var(--space-6) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--rule-soft);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.7;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}

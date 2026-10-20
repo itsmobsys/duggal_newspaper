@@ -1,0 +1,46 @@
+/* About page: stats commentary, tech list and body copy. Global .steps/.stat do the heavy lifting. */
+
+.statsNote {
+  margin: var(--space-3) 0 0;
+  max-width: 74ch;
+  color: var(--ink-mute);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.body {
+  max-width: 72ch;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.tech {
+  margin: 0;
+  padding-left: 1.15em;
+  max-width: 74ch;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.tech li {
+  margin-bottom: 0.7em;
+}
+
+.tech li::marker {
+  color: var(--accent);
+}
+
+.tech strong {
+  color: var(--ink);
+}
+
+.tech code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--paper-2);
+  border: 1px solid var(--rule-soft);
+  padding: 1px 5px;
+  word-break: break-word;
+}

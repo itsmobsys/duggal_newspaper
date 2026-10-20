@@ -1,0 +1,137 @@
+/* Editions index: one date-led card per issue. */
+
+.list {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  border-top: 3px double var(--rule);
+  padding-top: var(--space-4);
+}
+
+.edition {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.dateColumn {
+  min-width: 0;
+}
+
+.dateLink {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.dateLink time {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.dateLink:hover .day {
+  color: var(--accent);
+}
+
+.day {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+}
+
+.month {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.year {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-mute);
+}
+
+.body {
+  min-width: 0;
+}
+
+.headline {
+  margin: 0 0 6px;
+  font-size: var(--step-2);
+  line-height: 1.1;
+}
+
+.headline a {
+  text-decoration: none;
+}
+
+.headline a:hover {
+  color: var(--accent);
+}
+
+.summary {
+  margin: 0 0 10px;
+  max-width: 68ch;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.metaDivider {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--rule-soft);
+}
+
+@media (min-width: 640px) {
+  .dateLink time {
+    flex-wrap: nowrap;
+  }
+
+  .day {
+    font-size: 3rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .edition {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+  }
+
+  .dateLink time {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .day {
+    font-size: 3.75rem;
+  }
+}

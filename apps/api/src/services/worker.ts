@@ -5,7 +5,13 @@ import type { UploadRow } from '../db/types.js';
 import { DeferJobError } from '../lib/errors.js';
 import { logger, type Logger } from '../lib/logger.js';
 import { cleanupRateLimits } from '../lib/rate-limit.js';
-import { editionDateFor, localHourFor, localWeekdayFor, nowIso } from '../lib/time.js';
+import {
+  editionDateFor,
+  localHourFor,
+  localWeekdayFor,
+  nextEditionDate,
+  nowIso,
+} from '../lib/time.js';
 import { loadSettings, type Settings } from '../settings.js';
 import { buildWeeklyAwards } from './awards.js';
 import { buildEdition } from './editions.js';
@@ -62,7 +68,24 @@ async function runJob(db: Db, job: JobRecord, log: Logger, settings: Settings): 
     }
     case 'build_edition': {
       const date = String(payload.date ?? editionDateFor(new Date(), settings['site.timezone']));
-      await buildEdition(db, date, log);
+
+      // An on-demand rebuild should include the stories the admin just sent.
+      // If those are still being rewritten, wait briefly instead of printing a
+      // paper that is already missing its own front page.
+      if (payload.afterQueue === true) {
+        const queuedAt = Number(payload.queuedAt ?? 0);
+        const pending = await db.get<{ count: number }>(
+          `SELECT COUNT(*) as count FROM jobs
+           WHERE type = 'process_submission' AND status IN ('pending','leased')`,
+        );
+        const waiting = Number(pending?.count ?? 0);
+        const withinWindow = queuedAt > 0 && Date.now() - queuedAt < 15 * 60_000;
+        if (waiting > 0 && withinWindow) {
+          throw new DeferJobError(15, `Waiting for ${waiting} submission(s) to finish processing.`);
+        }
+      }
+
+      await buildEdition(db, date, log, { force: payload.force === true });
       return;
     }
     case 'weekly_awards': {
@@ -130,9 +153,49 @@ async function recoverFailedSubmissions(db: Db, log: Logger): Promise<void> {
 }
 
 /**
- * The always-on heartbeat. Runs on every worker tick and is idempotent:
- * coalesced jobs mean multiple instances / cron pings cannot duplicate work.
+ * Makes sure an edition exists for `date` — either by asking the queue to build
+ * it, or by retrying a deterministic fallback that was written while the AI was
+ * unreachable. Never enqueues an edition with no stories behind it.
  */
+async function ensureEdition(
+  db: Db,
+  date: string,
+  options: { hour: number; retryFallback: boolean },
+): Promise<void> {
+  const existing = await db.get<{ generated_by: string }>(
+    'SELECT generated_by FROM editions WHERE edition_date = ?',
+    [date],
+  );
+
+  if (!existing) {
+    const story = await db.get<{ count: number }>(
+      `SELECT COUNT(*) as count FROM articles WHERE status = 'published' AND edition_date = ?`,
+      [date],
+    );
+    if (Number(story?.count ?? 0) === 0) return;
+    await enqueueJob(db, {
+      type: 'build_edition',
+      payload: { date },
+      idempotencyKey: `edition:${date}`,
+      once: true,
+      priority: 4,
+    });
+    return;
+  }
+
+  // A fallback layout is a safety net, not the finished paper. During the night
+  // window, try once an hour to replace it with a real AI-written edition.
+  if (options.retryFallback && existing.generated_by !== 'ai') {
+    await enqueueJob(db, {
+      type: 'build_edition',
+      payload: { date },
+      idempotencyKey: `edition:${date}:retry:${options.hour}`,
+      once: true,
+      priority: 3,
+    });
+  }
+}
+
 export async function runScheduler(db: Db): Promise<void> {
   const settings = await loadSettings(db);
   const now = new Date();
@@ -181,25 +244,20 @@ export async function runScheduler(db: Db): Promise<void> {
     }
   }
 
-  if (settings['autonomy.daily_edition'] && hour >= settings['autonomy.edition_hour']) {
-    const existing = await db.get<{ edition_date: string }>(
-      'SELECT edition_date FROM editions WHERE edition_date = ?',
-      [date],
-    );
-    if (!existing) {
-      const story = await db.get<{ count: number }>(
-        `SELECT COUNT(*) as count FROM articles WHERE status = 'published' AND edition_date = ?`,
-        [date],
-      );
-      if (Number(story?.count ?? 0) > 0) {
-        await enqueueJob(db, {
-          type: 'build_edition',
-          payload: { date },
-          idempotencyKey: `edition:${date}`,
-          once: true,
-          priority: 4,
-        });
-      }
+  if (settings['autonomy.daily_edition']) {
+    // A story belongs to the edition it will be read in, so the paper dated
+    // today was assembled last night and should already be waiting.
+    await ensureEdition(db, date, { hour, retryFallback: hour < 6 });
+
+    // Nightly build. With the default edition hour of 23 (11 PM IST) the AI
+    // starts assembling tomorrow's paper, then the front page rolls over to it
+    // at midnight — ready, not still typing.
+    if (hour >= settings['autonomy.edition_hour']) {
+      const upcoming = nextEditionDate(now, settings['site.timezone']);
+      await ensureEdition(db, upcoming, {
+        hour,
+        retryFallback: hour >= settings['autonomy.edition_hour'] || hour < 6,
+      });
     }
   }
 
@@ -350,6 +408,26 @@ let injectedDb: Db | null = null;
 
 export function setWorkerDb(db: Db | null): void {
   injectedDb = db;
+}
+
+/**
+ * Fire-and-forget tick used by request handlers. On a long-lived Render
+ * instance this starts work a few milliseconds after the response; if the
+ * process is asleep the durable queue (or the external cron pinger) picks it
+ * up on the next tick.
+ */
+export function kickWorkerTick(delayMs = 5, maxJobs = 4): void {
+  if (!config.worker.enabled) return;
+  setTimeout(() => {
+    void runWorkerTick({ maxJobs }).catch((error) => {
+      if (process.env.NODE_ENV !== 'test') {
+        logger.error(
+          { error: error instanceof Error ? error.message : String(error) },
+          'kicked worker tick failed',
+        );
+      }
+    });
+  }, delayMs).unref?.();
 }
 
 function db_(): Db {

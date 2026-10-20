@@ -1,0 +1,110 @@
+/* Archive-page furniture. Global tokens live in globals.css. */
+
+.backLink {
+  display: inline-block;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  text-decoration: none;
+}
+
+.backLink:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.year {
+  margin-bottom: var(--space-5);
+}
+
+.yearHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--rule-soft);
+  padding-bottom: 6px;
+  margin-bottom: var(--space-2);
+}
+
+.yearHead h3 {
+  margin: 0;
+  font-size: var(--step-2);
+}
+
+.yearTotal {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.monthList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.monthLink {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px var(--space-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  text-decoration: none;
+}
+
+.monthLink:hover {
+  color: var(--accent);
+}
+
+.monthName {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.currentLabel {
+  font-family: var(--font-sans);
+  font-size: 0.5625rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid currentColor;
+  padding: 1px 5px;
+}
+
+.monthCount {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+@media (min-width: 640px) {
+  .monthList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-5);
+  }
+}
+
+@media (min-width: 900px) {
+  .monthList {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

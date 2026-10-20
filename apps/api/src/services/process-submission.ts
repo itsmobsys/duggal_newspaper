@@ -15,12 +15,10 @@ import {
 } from './ai/prompt.js';
 import { analyzeHeuristics, findDuplicate } from './moderation.js';
 import { findCategorySlug, publishArticle } from './publishing.js';
-import { enqueueJob } from './queue.js';
 import { toVisionDataUrl } from './images.js';
 import { getStorage } from './storage.js';
 import type { AiImageInput } from './ai/client.js';
 import type { Settings } from '../settings.js';
-import { editionDateFor } from '../lib/time.js';
 
 /**
  * Marker stored on submissions that were paused because no AI key is configured.
@@ -323,15 +321,6 @@ export async function processSubmission(
        updated_at = ? WHERE id = ?`,
     [config.ai.model, now, now, submission.id],
   );
-
-  const editionDate = editionDateFor(new Date(), settings['site.timezone']);
-  await enqueueJob(db, {
-    type: 'build_edition',
-    payload: { date: editionDate },
-    idempotencyKey: `edition:${editionDate}`,
-    once: true,
-    priority: 5,
-  });
 
   log.info(
     {

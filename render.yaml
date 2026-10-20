@@ -1,0 +1,147 @@
+# ---------------------------------------------------------------------------
+# Render Blueprint - Duggal Badmosh Daily API (free tier)
+#
+# One free web service runs the Fastify API (newsroom brain): submissions,
+# the AI pipeline, the queue worker, admin console API and photo storage.
+# The public website lives on Vercel and reads Turso directly.
+#
+# Health check
+# ------------
+# Render polls `healthCheckPath` to decide whether a deploy is live and to
+# restart wedged instances. We use `/healthz` (always 200 while the process is
+# up) rather than `/readyz`, because `/readyz` returns 503 when the database is
+# unreachable or when optional services are missing. Restarting the API would
+# not fix a sleeping Turso database, so liveness and readiness are deliberately
+# split.
+#
+# Keeping the free instance awake
+# ------------------------------
+# Render free services spin down after ~15 minutes without traffic. Render's
+# own health checks do NOT count as traffic, so point your external uptime
+# monitor (e.g. a 5-minute cron ping, UptimeRobot, cron-job.org) at:
+#
+#     https://<your-service>.onrender.com/healthz
+#
+# A ping every 5 minutes keeps the instance warm, which in turn lets the
+# in-process worker loop keep publishing. `/readyz` is the deeper report the
+# monitor can use for alerting (it lists database, storage and AI status).
+# ---------------------------------------------------------------------------
+
+services:
+  - type: web
+    name: duggal-badmosh-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: apps/api
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render injects PORT; the API reads it automatically.
+      - key: HOST
+        value: 0.0.0.0
+      - key: LOG_LEVEL
+        value: info
+
+      # --- Public URLs (set the real values in the Render dashboard) ---------
+      # The Vercel site origin allowed to call the API through the BFF.
+      - key: WEB_ORIGIN
+        sync: false
+      # Public URL of this Render service; photo uploads PUT here directly.
+      - key: API_PUBLIC_URL
+        sync: false
+
+      # --- Turso -------------------------------------------------------------
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+
+      # --- NVIDIA Nemotron (server-only secret) ------------------------------
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_BASE_URL
+        value: https://integrate.api.nvidia.com/v1
+      - key: NVIDIA_MODEL
+        value: nvidia/nemotron-3.5-super-vl-120b-a12b
+      - key: AI_MAX_RPM
+        value: "28"
+      - key: AI_TIMEOUT_MS
+        value: "180000"
+      - key: AI_MAX_ATTEMPTS
+        value: "5"
+      - key: AI_TEMPERATURE
+        value: "0.9"
+      - key: AI_MAX_TOKENS
+        value: "2600"
+      - key: AI_JSON_MODE
+        value: "true"
+      - key: AI_VISION
+        value: "true"
+      - key: AI_VISION_MAX_IMAGES
+        value: "3"
+
+      # --- Shared secrets (all different, min 24 chars) ----------------------
+      # Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      - key: SERVICE_SECRET
+        sync: false
+      - key: WORKER_TICK_TOKEN
+        sync: false
+      - key: SESSION_PEPPER
+        sync: false
+      - key: ADMIN_SESSION_TTL_HOURS
+        value: "72"
+
+      # --- Photo storage (Cloudflare R2 / Backblaze B2 / Supabase) -----------
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_PUBLIC_BASE_URL
+        sync: false
+      - key: S3_FORCE_PATH_STYLE
+        value: "false"
+
+      # --- Submission limits -------------------------------------------------
+      - key: MAX_UPLOAD_BYTES
+        value: "8388608"
+      - key: MAX_IMAGES_PER_SUBMISSION
+        value: "4"
+      - key: UPLOAD_TICKET_TTL_MINUTES
+        value: "30"
+      - key: SITE_TIMEZONE
+        value: Asia/Kolkata
+
+      # --- Worker / queue ----------------------------------------------------
+      # The instance is kept warm by the 5-minute uptime ping, so the in-process
+      # worker publishes within seconds. The GitHub Actions cron tick stays as a
+      # safety net (leases make double-ticking safe).
+      - key: WORKER_ENABLED
+        value: "true"
+      - key: WORKER_INTERVAL_MS
+        value: "20000"
+      - key: WORKER_LEASE_MS
+        value: "300000"
+      - key: WORKER_MAX_JOBS_PER_TICK
+        value: "4"
+      - key: WORKER_BUDGET_MS
+        value: "90000"
+      - key: TRUST_PROXY
+        value: "true"
+
+      # --- Vercel cache invalidation ----------------------------------------
+      # REVALIDATE_URL is the website's /api/revalidate endpoint.
+      - key: REVALIDATE_URL
+        sync: false
+      - key: REVALIDATE_SECRET
+        sync: false

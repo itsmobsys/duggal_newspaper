@@ -1,0 +1,103 @@
+/* Standards page: long-form prose. No drop cap, no clamp — this is reference copy. */
+
+.toc {
+  margin: 0 0 var(--space-6);
+  padding: var(--space-4);
+  border: 1px solid var(--rule-soft);
+  background: var(--surface);
+}
+
+.tocLabel {
+  margin: 0 0 8px;
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.toc ol {
+  display: grid;
+  gap: 4px 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: toc;
+}
+
+.toc li {
+  counter-increment: toc;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.toc li::before {
+  content: counter(toc, decimal-leading-zero);
+  margin-right: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--accent);
+}
+
+.prose {
+  max-width: 72ch;
+  font-size: 1.0625rem;
+  line-height: 1.72;
+}
+
+.prose section + section {
+  margin-top: var(--space-6);
+}
+
+.prose h2 {
+  margin: 0 0 var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 2px solid var(--rule);
+  font-size: var(--step-2);
+  scroll-margin-top: var(--space-4);
+}
+
+.prose p {
+  margin: 0 0 1.1em;
+  color: var(--ink-soft);
+}
+
+.prose ul {
+  margin: 0 0 1.1em;
+  padding-left: 1.15em;
+  color: var(--ink-soft);
+}
+
+.prose li {
+  margin-bottom: 0.45em;
+}
+
+.prose li::marker {
+  color: var(--accent);
+}
+
+.prose strong {
+  color: var(--ink);
+}
+
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--paper-2);
+  border: 1px solid var(--rule-soft);
+  padding: 1px 5px;
+  word-break: break-word;
+}
+
+.prose a {
+  text-decoration-color: var(--rule-soft);
+  text-decoration-thickness: 1px;
+}
+
+@media (min-width: 640px) {
+  .toc ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-4);
+  }
+}

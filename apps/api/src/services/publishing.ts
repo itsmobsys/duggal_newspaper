@@ -3,7 +3,7 @@ import type { ArticleRow, SubmissionImageRow, SubmissionRow } from '../db/types.
 import { newId, shortCode } from '../lib/id.js';
 import { logger } from '../lib/logger.js';
 import { slugify, stripHtmlLike, truncate, readingMinutes } from '../lib/text.js';
-import { editionDateFor, nowIso } from '../lib/time.js';
+import { nextEditionDate, nowIso } from '../lib/time.js';
 import type { Settings } from '../settings.js';
 import { config } from '../config.js';
 import type { AiResult } from './ai/schema.js';
@@ -88,7 +88,7 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
   const authorDisplay = anonymous ? 'Anonymous' : submission.author_name;
   const slug = await uniqueSlug(db, headline);
   const now = nowIso();
-  const editionDate = editionDateFor(new Date(), settings['site.timezone']);
+  const editionDate = nextEditionDate(new Date(), settings['site.timezone']);
   const articleId = newId('art');
 
   const captionsByIdx = new Map(ai.image_captions.map((caption) => [caption.index, caption]));
@@ -157,6 +157,13 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
       position += 1;
     }
 
+    // Stories can land after the nightly build has already assembled the edition.
+    // Bump the counter so the archive and edition pages stay accurate.
+    await tx.run(
+      `UPDATE editions SET article_count = article_count + 1, updated_at = ? WHERE edition_date = ?`,
+      [now, editionDate],
+    );
+
     await tx.run(
       `UPDATE submissions SET status = 'published', article_id = ?, processed_at = ?, ai_model = ?,
          review_reason = NULL, review_reasons = NULL, updated_at = ? WHERE id = ?`,
@@ -191,6 +198,8 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
     `/article/${article.slug}`,
     `/category/${article.category_slug}`,
     '/archive',
+    '/editions',
+    `/edition/${editionDate}`,
   ]);
   return { article, created: true };
 }

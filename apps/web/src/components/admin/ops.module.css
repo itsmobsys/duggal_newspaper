@@ -1,0 +1,240 @@
+/* ==========================================================================
+   Admin console — operations pages.
+   Shared primitives (buttons, fields, tables, badges, panels, alerts) live in
+   globals.css. This module only adds what settings / queue / audit screens
+   need on top of them.
+   ========================================================================== */
+
+.noticeBar {
+  margin-bottom: var(--space-4);
+}
+
+.pageNote {
+  max-width: 70ch;
+  margin: 0 0 var(--space-4);
+  color: var(--ink-mute);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+/* --------------------------------------------------------------- settings --- */
+.groupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.groupHead h2 {
+  margin: 0;
+}
+
+.groupNote {
+  max-width: 70ch;
+  margin: 0 0 var(--space-4);
+  color: var(--ink-mute);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.fieldGrid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.fieldKey {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink-mute);
+  overflow-wrap: anywhere;
+}
+
+.rangeHint {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-mute);
+}
+
+.secretHint {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--ink-mute);
+}
+
+/* ------------------------------------------------------------ list tables --- */
+.cellStack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.hash {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.cellMuted {
+  color: var(--ink-mute);
+  font-size: 0.8125rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  border: 1px solid var(--rule-soft);
+  vertical-align: -2px;
+}
+
+.details {
+  margin-top: 4px;
+}
+
+.details > summary {
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.details > summary:hover {
+  color: var(--ink);
+}
+
+.detailText {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.metadata {
+  max-height: 320px;
+  margin: 6px 0 0;
+  padding: var(--space-3);
+  overflow: auto;
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-2);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------- actions --- */
+.drawer {
+  border: 1px solid var(--rule-soft);
+  background: var(--paper);
+  padding: var(--space-2) var(--space-3);
+  min-width: 210px;
+}
+
+.drawer[open] {
+  padding-bottom: var(--space-3);
+}
+
+.drawer > summary {
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.drawerBody {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.actionMessage {
+  margin-top: var(--space-2);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.inlineError {
+  margin-top: var(--space-2);
+}
+
+.rebuildForm {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 520px;
+}
+
+.testOutput {
+  margin-top: var(--space-3);
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-2);
+  padding: var(--space-3);
+}
+
+.testOutput h3 {
+  margin-bottom: var(--space-2);
+}
+
+/* --------------------------------------------------------------- filters --- */
+.filter {
+  display: grid;
+  gap: 4px;
+}
+
+.filterLabel {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.statRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-mute);
+}
+
+.statRow strong {
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+/* ---------------------------------------------------------- breakpoints ---- */
+@media (min-width: 640px) {
+  .fieldGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fieldWide {
+    grid-column: 1 / -1;
+  }
+}

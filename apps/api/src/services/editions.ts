@@ -21,9 +21,18 @@ interface StoryPreview {
   published_at: string;
 }
 
-export async function buildEdition(db: Db, date: string, log: typeof logger): Promise<void> {
+export async function buildEdition(
+  db: Db,
+  date: string,
+  log: typeof logger,
+  options: { force?: boolean } = {},
+): Promise<void> {
   const settings = await loadSettings(db);
-  if (!settings['autonomy.enabled'] || !settings['autonomy.daily_edition']) return;
+  // `force` is an explicit admin action ("build the paper now"). It overrides
+  // the autonomy gates, which exist for unattended runs only.
+  if (!options.force && (!settings['autonomy.enabled'] || !settings['autonomy.daily_edition'])) {
+    return;
+  }
 
   const stories = await db.all<StoryPreview>(
     `SELECT a.id, a.slug, a.headline, a.dek, a.category_slug, a.author_display, a.breaking,
@@ -44,7 +53,7 @@ export async function buildEdition(db: Db, date: string, log: typeof logger): Pr
   const existing = await db.get<EditionRow>('SELECT * FROM editions WHERE edition_date = ?', [
     date,
   ]);
-  const canUpgrade = existing && existing.generated_by !== 'ai';
+  const canUpgrade = existing && (existing.generated_by !== 'ai' || options.force === true);
   if (existing && !canUpgrade) {
     await db.run('UPDATE editions SET article_count = ?, updated_at = ? WHERE edition_date = ?', [
       stories.length,
@@ -83,8 +92,18 @@ export async function buildEdition(db: Db, date: string, log: typeof logger): Pr
       { error: error instanceof Error ? error.message : String(error) },
       'AI edition generation failed; using deterministic layout',
     );
+    // Never downgrade a finished AI edition to a fallback during a manual
+    // rebuild. Keep the existing paper and just refresh its story count.
+    if (existing && existing.generated_by === 'ai') {
+      await db.run('UPDATE editions SET article_count = ?, updated_at = ? WHERE edition_date = ?', [
+        stories.length,
+        nowIso(),
+        date,
+      ]);
+      return;
+    }
     await writeFallbackEdition(db, date, stories);
-    void revalidateWeb(['/', `/editions/${date}`]);
+    void revalidateWeb(['/', '/editions', `/edition/${date}`]);
     return;
   }
 
@@ -169,7 +188,7 @@ export async function buildEdition(db: Db, date: string, log: typeof logger): Pr
   });
 
   log.info({ date, stories: stories.length, lead: lead.slug }, 'edition built');
-  void revalidateWeb(['/', `/editions/${date}`]);
+  void revalidateWeb(['/', '/editions', `/edition/${date}`]);
 }
 
 async function writeFallbackEdition(db: Db, date: string, stories: StoryPreview[]): Promise<void> {

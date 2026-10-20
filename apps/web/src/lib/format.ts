@@ -1,0 +1,164 @@
+/** Date, number and label formatting shared by server and client components. */
+
+const DEFAULT_TIMEZONE = 'Asia/Kolkata';
+
+function parse(iso: string | Date | null | undefined): Date | null {
+  if (!iso) return null;
+  const date = iso instanceof Date ? iso : new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatDate(
+  iso: string | Date | null | undefined,
+  timeZone = DEFAULT_TIMEZONE,
+): string {
+  const date = parse(iso);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone,
+  }).format(date);
+}
+
+export function formatDateShort(
+  iso: string | Date | null | undefined,
+  timeZone = DEFAULT_TIMEZONE,
+): string {
+  const date = parse(iso);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone,
+  }).format(date);
+}
+
+export function formatDayMonth(
+  iso: string | Date | null | undefined,
+  timeZone = DEFAULT_TIMEZONE,
+): string {
+  const date = parse(iso);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone,
+  }).format(date);
+}
+
+export function formatDateTime(
+  iso: string | Date | null | undefined,
+  timeZone = DEFAULT_TIMEZONE,
+): string {
+  const date = parse(iso);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone,
+  }).format(date);
+}
+
+export function formatTime(
+  iso: string | Date | null | undefined,
+  timeZone = DEFAULT_TIMEZONE,
+): string {
+  const date = parse(iso);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone,
+  }).format(date);
+}
+
+/** Calendar date (YYYY-MM-DD) in an IANA timezone. */
+export function editionDateFor(date: Date, timeZone = DEFAULT_TIMEZONE): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === 'year')?.value ?? '1970';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '01';
+  const day = parts.find((part) => part.type === 'day')?.value ?? '01';
+  return `${year}-${month}-${day}`;
+}
+
+/** Today's date in the newsroom timezone. */
+export function todayIn(timeZone = DEFAULT_TIMEZONE): string {
+  return editionDateFor(new Date(), timeZone);
+}
+
+/**
+ * The edition a story published right now belongs to.
+ * Mirrors `nextEditionDate` in the API: stories filed today are printed in
+ * tomorrow's paper, which goes live at midnight.
+ */
+export function nextEditionDateFor(date: Date, timeZone = DEFAULT_TIMEZONE): string {
+  return editionDateFor(new Date(date.getTime() + 24 * 3600 * 1000), timeZone);
+}
+
+/** "Tue, 20 Oct 2026" — used for edition headers. */
+export function editionHeading(dateIso: string, timeZone = DEFAULT_TIMEZONE): string {
+  const date = parse(`${dateIso}T12:00:00Z`);
+  if (!date) return dateIso;
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone,
+  }).format(date);
+}
+
+/** "Tuesday" — compact weekday label. */
+export function weekdayFor(dateIso: string, timeZone = DEFAULT_TIMEZONE): string {
+  const date = parse(`${dateIso}T12:00:00Z`);
+  if (!date) return '';
+  return new Intl.DateTimeFormat('en-GB', { weekday: 'long', timeZone }).format(date);
+}
+
+export function relativeTime(iso: string | Date | null | undefined, now = Date.now()): string {
+  const date = parse(iso);
+  if (!date) return '';
+  const seconds = Math.round((date.getTime() - now) / 1000);
+  const abs = Math.abs(seconds);
+  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  if (abs < 60) return 'just now';
+  if (abs < 3600) return formatter.format(Math.round(seconds / 60), 'minute');
+  if (abs < 86_400) return formatter.format(Math.round(seconds / 3600), 'hour');
+  if (abs < 604_800) return formatter.format(Math.round(seconds / 86_400), 'day');
+  if (abs < 2_629_800) return formatter.format(Math.round(seconds / 604_800), 'week');
+  return formatter.format(Math.round(seconds / 2_629_800), 'month');
+}
+
+export function readingLabel(minutes: number): string {
+  const value = Math.max(1, Math.round(minutes || 1));
+  return `${value} min read`;
+}
+
+export function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return '0';
+  if (value < 1000) return String(Math.round(value));
+  if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}k`;
+  return `${(value / 1_000_000).toFixed(1)}m`;
+}
+
+export function pluralise(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/** Safe percent for progress-ish UI. */
+export function clampPercent(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}

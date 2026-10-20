@@ -1,0 +1,409 @@
+/* ==========================================================================
+   Public forms — /submit, /status, /report, /correction
+   --------------------------------------------------------------------------
+   Shared, mobile-first styles. Layout primitives and form controls come from
+   globals.css; this module only adds the two-column desks, photo previews,
+   status detail and small helpers.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Desk layout: form on the left, rules/rail on the right
+   -------------------------------------------------------------------------- */
+.split {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--space-6);
+  }
+}
+
+.aside {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.card {
+  border: 1px solid var(--rule-soft);
+  border-top: 4px solid var(--rule);
+  background: var(--surface);
+  padding: var(--space-4);
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ruleList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ruleList li {
+  padding: 8px 0;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.ruleList li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ruleList strong {
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.note {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-mute);
+}
+
+.note + .note {
+  margin-top: var(--space-3);
+}
+
+.optional {
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--ink-mute);
+}
+
+/* A field that came from the article link: visible, labelled, not editable. */
+.readOnly {
+  background: var(--paper-2);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+
+.readOnly:focus {
+  border-color: var(--rule-soft);
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   Errors
+   -------------------------------------------------------------------------- */
+.errorSummary {
+  margin-bottom: var(--space-2);
+}
+
+.errorSummary ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.errorSummary li {
+  margin-top: 2px;
+}
+
+.errorSummary a {
+  color: inherit;
+  font-weight: 700;
+}
+
+.issueList {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+/* --------------------------------------------------------------------------
+   Photos
+   -------------------------------------------------------------------------- */
+.fileInput {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.fileInput::file-selector-button {
+  min-height: 36px;
+  margin-inline-end: 12px;
+  padding: 8px 14px;
+  border: 2px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.fileInput:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.photoList {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.photoItem {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: 8px;
+  border: 1px solid var(--rule-soft);
+  background: var(--surface);
+}
+
+.photoThumb {
+  display: block;
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-2);
+}
+
+.photoMeta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.photoName {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.photoState {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.photoError {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.remove {
+  justify-self: start;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--rule-soft);
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.remove:hover {
+  border-color: var(--accent);
+}
+
+.remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.progressText {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--ink-mute);
+}
+
+.busyNote {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-mute);
+}
+
+/* --------------------------------------------------------------------------
+   Success panel
+   -------------------------------------------------------------------------- */
+.success {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.tokenBox {
+  display: block;
+  padding: 8px;
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-2);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.copyRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.copyStatus {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--green);
+}
+
+/* --------------------------------------------------------------------------
+   Status detail
+   -------------------------------------------------------------------------- */
+.statusGrid {
+  display: grid;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .statusGrid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--space-6);
+  }
+}
+
+.statusHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.statusTitle {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.metaList {
+  display: grid;
+  gap: 6px;
+  margin: var(--space-3) 0 0;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+
+.metaKey {
+  min-width: 110px;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.metaValue {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  word-break: break-word;
+}
+
+.thumbGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-2);
+}
+
+.stepNote {
+  margin-top: 2px;
+}
+
+.refresher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--rule-soft);
+}
+
+.refresherNote {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--ink-mute);
+}
+
+/* --------------------------------------------------------------------------
+   Lookup and small helpers
+   -------------------------------------------------------------------------- */
+.lookupWrap {
+  max-width: 560px;
+}
+
+.inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.formActions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .formActions {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+}
