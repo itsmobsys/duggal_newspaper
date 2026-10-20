@@ -58,9 +58,9 @@ an individual is officially representing the community in public spaces.
 ## Enforcement
 
 Report abusive, harassing, or otherwise unacceptable behaviour privately to the
-maintainers. Use the Discord server linked in the newspaper's footer, or open a
-confidential report through GitHub's Security → Advisories channel and mark it
-**conduct**. Do not open a public issue about a person.
+maintainers through GitHub's private vulnerability reporting (Security →
+Advisories → Report a vulnerability) and mark the report **conduct**. Do not open
+a public issue about a person.
 
 All complaints will be reviewed and investigated promptly and fairly. Maintainers
 are obligated to respect the privacy and security of the reporter of any incident.
