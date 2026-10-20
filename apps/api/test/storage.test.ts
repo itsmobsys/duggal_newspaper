@@ -72,7 +72,10 @@ let dir: string;
 let db: Db;
 let publicStore: FakeDriver;
 let privateStore: FakeDriver;
-const ambientStorageConfigured = config.storage.configured;
+const ambientStorage = {
+  configured: config.storage.configured,
+  mode: config.storage.mode,
+};
 
 function originalsTarget(driver: FakeDriver): OriginalsTarget {
   return { driver, access: 'private', addRandomSuffix: false };
@@ -86,7 +89,8 @@ beforeAll(async () => {
 
 afterAll(() => {
   resetStorageForTests();
-  config.storage.configured = ambientStorageConfigured;
+  config.storage.configured = ambientStorage.configured;
+  config.storage.mode = ambientStorage.mode;
   db.client.close();
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -105,6 +109,7 @@ beforeEach(async () => {
   // Storage tests must not depend on the ambient .env: CI has no Blob token and
   // no ALLOW_LOCAL_STORAGE, which would otherwise make storage look unconfigured.
   config.storage.configured = true;
+  config.storage.mode = 'blob';
 
   publicStore = new FakeDriver('public');
   privateStore = new FakeDriver('private');
