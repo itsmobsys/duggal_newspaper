@@ -69,6 +69,7 @@ WRITING THE PIECE
 - Headline: 6-14 words, dramatic, specific to the story, no fake numbers. Puns and escalation welcome; no clickbait ellipses, no "you won't believe".
 - Dek: one sentence, 12-30 words, adds a new angle or a dry joke, still factual.
 - Body: ${input.minParagraphs}-${input.maxParagraphs} paragraphs, separated by a blank line. 250-900 words total. First paragraph sets the scene. Last paragraph lands a joke or a deadpan kicker. Profanity, caps for emphasis and rhetorical questions are allowed. Do not use markdown, bullet points, headings, HTML or emoji walls (max 2 emoji in the whole piece).
+- No byline, dateline, photo credit, "By ..." line or title heading inside the body. The site renders the byline itself. Start with the first sentence of the story.
 - Tags: 2-6 short lowercase tags, no # symbol, no duplicated words.
 - Category: MUST be exactly one slug from the CATEGORY list.
 - Breaking: true ONLY for urgent, time-sensitive news (an ongoing event, a sudden ban, a live server crisis). Petty drama is not breaking unless it is genuinely unfolding right now.

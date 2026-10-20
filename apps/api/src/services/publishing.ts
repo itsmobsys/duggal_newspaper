@@ -32,13 +32,73 @@ export interface PublishedArticle {
   created: boolean;
 }
 
-function normaliseBody(body: string): string {
-  return stripHtmlLike(body)
+const BYLINE_PREFIX = /^(?:by|written by|words by|reported by|story by|from)\s+(.+)$/i;
+const BYLINE_STOPWORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'for',
+  'from',
+  'her',
+  'his',
+  'in',
+  'is',
+  'it',
+  'its',
+  'my',
+  'of',
+  'on',
+  'our',
+  'that',
+  'the',
+  'their',
+  'this',
+  'to',
+  'was',
+  'were',
+  'with',
+  'your',
+]);
+
+/**
+ * Submitters sometimes type a byline above their story ("By boink"). The site
+ * renders the byline itself, so keeping it in the body duplicates it and parks
+ * the drop cap on its first letter. Drop such leading lines, but only when they
+ * really look like a name: "By the time he arrived" must survive.
+ */
+function looksLikeByline(paragraph: string, author: string): boolean {
+  const match = BYLINE_PREFIX.exec(paragraph.trim());
+  if (!match) return false;
+  const name = (match[1] ?? '').trim();
+  if (!name || name.length > 60 || /[.!?]$/.test(name)) return false;
+  if (author && name.replace(/^@/, '').toLowerCase() === author.replace(/^@/, '').toLowerCase()) {
+    return true;
+  }
+  const words = name.split(/\s+/);
+  if (words.length > 4) return false;
+  return !words.some((word) =>
+    BYLINE_STOPWORDS.has(word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')),
+  );
+}
+
+export function normaliseBody(body: string, author = ''): string {
+  const paragraphs = stripHtmlLike(body)
     .replace(/\r\n?/g, '\n')
     .split(/\n\s*\n/)
     .map((paragraph) => paragraph.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-    .join('\n\n');
+    .filter(Boolean);
+
+  let start = 0;
+  while (start < 2) {
+    const paragraph = paragraphs[start];
+    if (!paragraph || !looksLikeByline(paragraph, author)) break;
+    start += 1;
+  }
+
+  return paragraphs.slice(start).join('\n\n');
 }
 
 function cleanTags(tags: string[]): string[] {
@@ -79,7 +139,7 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
 
   const headline = stripHtmlLike(input.overrides?.headline ?? ai.headline) || 'Untitled kand';
   const dek = stripHtmlLike(input.overrides?.dek ?? ai.dek) || null;
-  const body = normaliseBody(input.overrides?.body ?? ai.body);
+  const body = normaliseBody(input.overrides?.body ?? ai.body, input.submission.author_name);
   if (!body) throw new Error('Refusing to publish an empty article body.');
   /**
    * An editor who types the body is the author of that text: it must not be
