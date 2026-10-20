@@ -8,6 +8,10 @@ name: Newsroom tick
 #   API_BASE_URL       e.g. https://duggal-badmosh-api.onrender.com (no slash)
 #   WORKER_TICK_TOKEN  must be byte-identical to the token on Render
 #
+# Without those secrets the job skips with a notice instead of failing, so a
+# fresh clone or a fork does not show a red scheduled run. Scheduled runs on a
+# fork cannot reach the production API anyway.
+#
 # Notes
 # - GitHub's scheduled runs are best-effort and can be delayed under load.
 # - Scheduled workflows are disabled after ~60 days without repository
@@ -38,8 +42,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${API_BASE_URL}" ] || [ -z "${WORKER_TICK_TOKEN}" ]; then
-            echo "::error::API_BASE_URL and WORKER_TICK_TOKEN repository secrets are required."
-            exit 1
+            echo "::notice title=Newsroom tick skipped::API_BASE_URL and WORKER_TICK_TOKEN are not set. Add both repository secrets so the schedule can wake the API. Until then the queue still drains whenever the site gets traffic."
+            exit 0
           fi
 
           base="${API_BASE_URL%/}"
