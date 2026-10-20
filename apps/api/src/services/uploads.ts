@@ -6,7 +6,13 @@ import { badRequest, notFound, unauthorized, AppError } from '../lib/errors.js';
 import { newId, randomToken } from '../lib/id.js';
 import { nowIso } from '../lib/time.js';
 import { processImage } from './images.js';
-import { buildStorageKey, getOriginalsTarget, getStorage, type StoredObject } from './storage.js';
+import {
+  buildStorageKey,
+  getOriginalsTarget,
+  getStorage,
+  mediaObjectUrl,
+  type StoredObject,
+} from './storage.js';
 import {
   classifyBlobError,
   markStorageDegraded,
@@ -154,6 +160,14 @@ export async function storeUpload(
   let ops = 2;
   let storedBytes = full.bytes + thumb.bytes;
 
+  // A public store hands out CDN URLs. A private store's URLs need credentials,
+  // so those photos are served by this API instead - the browser never sees the
+  // Blob URL. Originals keep their real URL: they are admin-only downloads.
+  const servedUrl = (object: StoredObject): string =>
+    storage.store === 'private' ? mediaObjectUrl(object.key) : object.url;
+  const fullUrl = servedUrl(full);
+  const thumbUrl = servedUrl(thumb);
+
   // Keep the untouched upload too. It is never rendered on the site - it exists
   // so a re-encode or a takedown can be checked against exactly what was filed.
   // A failure here never costs the submission its photos.
@@ -199,8 +213,8 @@ export async function storeUpload(
     [
       full.key,
       thumb.key,
-      full.url,
-      thumb.url,
+      fullUrl,
+      thumbUrl,
       'image/webp',
       full.bytes,
       processed.width,
@@ -240,8 +254,8 @@ export async function storeUpload(
 
   return {
     id: row.id,
-    url: full.url,
-    thumbUrl: thumb.url,
+    url: fullUrl,
+    thumbUrl,
     width: processed.width,
     height: processed.height,
     bytes: full.bytes,

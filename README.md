@@ -368,12 +368,23 @@ The site reads Turso directly, so publishing never waits for a Vercel deploy.
 1. Vercel dashboard → **Storage → Create Database → Blob**. Copy the
    **read/write token**.
 2. Paste it into Render as `BLOB_READ_WRITE_TOKEN` (server-side only; it is
-   never sent to the browser).
+   never sent to the browser). The store may be **public or private**: on the
+   first photo write the API detects a private store, switches that write to
+   private access, and serves photos through `GET /media/<key>` on Render
+   instead of a Blob URL. Nothing needs to be configured for either mode, and
+   `/media` keeps working across restarts.
 3. Optional but recommended: create a second Blob store with **private** access
    for untouched originals and set `BLOB_PRIVATE_READ_WRITE_TOKEN`. Without it,
-   originals go to the public store under an unguessable random suffix.
+   originals go to the public store under an unguessable random suffix. Original
+   files are only ever downloaded by an authenticated admin, never proxied
+   publicly.
 4. Nothing else to configure: the browser uploads to Render, and Render writes to
    Blob. No bucket policy, no CORS, no public-bucket setup.
+
+Photos are always optimized to WebP before upload, so a private store only adds
+one proxy hop for the resized image (typically 150–400 KB), well inside Render's
+free bandwidth allowance.
+
 
 **Hobby limits and what the newsroom does about them**
 
@@ -382,7 +393,7 @@ The site reads Turso directly, so publishing never waits for a Vercel deploy.
 | 1 GB storage | soft limit **800 MB** (`storage.soft_limit_mb`) |
 | 10,000 simple ops | deletes are free, so cleanup costs nothing |
 | 2,000 advanced ops | budget **1,600** (`storage.monthly_advanced_op_limit`, clamped to 2,000); one `put()` = one advanced op |
-| 10 GB data transfer | photos are resized before storage and served from the Blob CDN |
+| 10 GB data transfer | photos are resized before storage; public stores serve them from the Blob CDN, private stores proxy them through Render |
 
 Exceeding the allowance does **not** bill you: Blob becomes inaccessible for
 roughly the rest of the 30-day billing period. So the API refuses new photo

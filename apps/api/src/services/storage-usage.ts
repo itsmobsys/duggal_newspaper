@@ -10,7 +10,7 @@ import { AppError } from '../lib/errors.js';
 import { newId } from '../lib/id.js';
 import { nowIso } from '../lib/time.js';
 import { loadSettings, type Settings } from '../settings.js';
-import { storageStatus } from './storage.js';
+import { isPrivateStoreError, storageStatus } from './storage.js';
 
 /**
  * Vercel Blob free-tier governor.
@@ -154,6 +154,12 @@ export function classifyBlobError(error: unknown): {
     return {
       kind: 'quota',
       message: 'The Blob store is suspended (free-tier usage limit reached).',
+    };
+  }
+  if (isPrivateStoreError(error)) {
+    return {
+      kind: 'auth',
+      message: 'The Blob store is private; photo writes must use private access.',
     };
   }
   if (error instanceof BlobAccessError) {

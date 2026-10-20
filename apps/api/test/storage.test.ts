@@ -10,8 +10,10 @@ import { logger } from '../src/lib/logger.js';
 import { nowIso } from '../src/lib/time.js';
 import {
   buildStorageKey,
+  isPrivateStoreError,
   resetStorageForTests,
   setStorageForTests,
+  storageStatus,
   type OriginalsTarget,
   type PutOptions,
   type StorageDriver,
@@ -30,7 +32,7 @@ import { createUploadTickets, storeUpload } from '../src/services/uploads.js';
 /** In-memory stand-in for Vercel Blob: records writes, can fail on demand. */
 class FakeDriver implements StorageDriver {
   readonly name = 'fake';
-  readonly store: StoredObject['store'];
+  store: StoredObject['store'];
   readonly puts: Array<{ key: string; bytes: number; contentType: string }> = [];
   readonly deletes: string[] = [];
   failOn: ((key: string) => Error | null) | null = null;
@@ -251,6 +253,57 @@ describe('storeUpload', () => {
     ]);
     expect(row?.status).toBe('pending');
   });
+
+  it('returns CDN URLs when the store is public', async () => {
+    const jpeg = await jpegFixture();
+    const ticket = await ticketFor(jpeg.byteLength);
+
+    const result = await storeUpload(db, {
+      uploadId: ticket.uploadId,
+      token: ticket.token,
+      buffer: jpeg,
+      contentType: 'image/jpeg',
+      ipHash: 'ip-test',
+    });
+
+    expect(result.url).toMatch(/^https:\/\/blob\.test\/uploads\/photos\//);
+    expect(result.thumbUrl).toMatch(/-thumb\.webp$/);
+  });
+
+  it('serves photos through /media when the store only accepts private writes', async () => {
+    const jpeg = await jpegFixture();
+    const ticket = await ticketFor(jpeg.byteLength);
+
+    // A private store cannot hand the browser a usable Blob URL, so the API has
+    // to proxy the bytes instead of returning a link that will 401/502.
+    setStorageForTests(privateStore);
+
+    const result = await storeUpload(db, {
+      uploadId: ticket.uploadId,
+      token: ticket.token,
+      buffer: jpeg,
+      contentType: 'image/jpeg',
+      ipHash: 'ip-test',
+    });
+
+    expect(result.url).toMatch(/\/media\/uploads\/photos\/.*\.webp$/);
+    expect(result.thumbUrl).toMatch(/\/media\/uploads\/photos\/.*-thumb\.webp$/);
+    expect(result.url).not.toContain('/public/uploads/');
+
+    const row = await db.get<{ url: string; thumb_url: string }>(
+      'SELECT url, thumb_url FROM uploads WHERE id = ?',
+      [ticket.uploadId],
+    );
+    expect(row?.url).toBe(result.url);
+    expect(row?.thumb_url).toBe(result.thumbUrl);
+  });
+
+  it('reports photo access so diagnostics can show whether /media is proxying', () => {
+    expect(storageStatus().photos).toBe('public');
+    setStorageForTests(privateStore);
+    expect(storageStatus().photos).toBe('private');
+    expect(storageStatus().originals).toBe('public');
+  });
 });
 
 describe('classifyBlobError', () => {
@@ -258,6 +311,18 @@ describe('classifyBlobError', () => {
     expect(classifyBlobError(new Error('quota exceeded')).kind).toBe('quota');
     expect(classifyBlobError(new Error('This store has been suspended')).kind).toBe('quota');
     expect(classifyBlobError(new Error('forbidden')).kind).toBe('other');
+  });
+
+  it('recognises a private store rejection and explains it instead of a generic 502', () => {
+    const error = new Error(
+      'Vercel Blob: Cannot use public access on a private store. The store is configured with private access.',
+    );
+    expect(isPrivateStoreError(error)).toBe(true);
+    expect(isPrivateStoreError(new Error('quota exceeded'))).toBe(false);
+    expect(classifyBlobError(error)).toEqual({
+      kind: 'auth',
+      message: 'The Blob store is private; photo writes must use private access.',
+    });
   });
 });
 

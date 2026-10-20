@@ -54,6 +54,7 @@ interface Diagnostics {
     ready: boolean;
     mode: 'blob' | 'local';
     originals: 'private' | 'public' | 'none';
+    photos: 'public' | 'private' | 'local' | 'none';
     usage: StorageUsage;
   };
   ai: { configured: boolean; model: string };
@@ -85,6 +86,13 @@ function originalsLabel(originals: 'private' | 'public' | 'none'): string {
   if (originals === 'private') return 'Private store (recommended)';
   if (originals === 'public') return 'Public store, unguessable URL';
   return 'Not kept';
+}
+
+function photosLabel(photos: 'public' | 'private' | 'local' | 'none'): string {
+  if (photos === 'public') return 'Public Blob CDN';
+  if (photos === 'private') return 'Private Blob store';
+  if (photos === 'local') return 'Local disk (development)';
+  return 'Not configured';
 }
 
 function isNextControlFlow(error: unknown): boolean {
@@ -224,6 +232,13 @@ export default async function DiagnosticsPage(): Promise<React.JSX.Element> {
                   </dd>
                   <dt>Originals</dt>
                   <dd>{originalsLabel(diagnostics.storage.originals)}</dd>
+                  <dt>Photos</dt>
+                  <dd>
+                    {photosLabel(diagnostics.storage.photos)}
+                    <span className={styles.cellMuted}>
+                      {diagnostics.storage.photos === 'private' ? ' — proxied by the API' : ''}
+                    </span>
+                  </dd>
                   <dt>Billing month</dt>
                   <dd className={styles.mono}>{diagnostics.storage.usage.month}</dd>
                   <dt>Storage used</dt>

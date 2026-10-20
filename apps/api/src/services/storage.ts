@@ -5,6 +5,7 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '../config.js';
 import { serviceUnavailable } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
 
 /**
  * Photo storage built on Vercel Blob (Hobby plan).
@@ -72,19 +73,65 @@ export function resetStorageForTests(): void {
   testOriginals = null;
 }
 
-class BlobDriver implements StorageDriver {
-  readonly name: string;
+/** Blob's exact wording when a store was created with private access. */
+const PRIVATE_STORE_REJECTION = /public access on a private store/i;
+
+/**
+ * True when Blob refused a write because the store itself is private. A store's
+ * access mode is fixed when it is created, so a token for a private store in
+ * `BLOB_READ_WRITE_TOKEN` can never accept public writes.
+ */
+export function isPrivateStoreError(error: unknown): boolean {
+  return error instanceof Error && PRIVATE_STORE_REJECTION.test(error.message);
+}
+
+/** URL this API serves an object from, for stores that are not public. */
+export function mediaObjectUrl(key: string): string {
+  const base = config.apiPublicUrl.replace(/\/+$/, '');
+  return `${base}/media/${key.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+export class BlobDriver implements StorageDriver {
+  private access: 'public' | 'private';
 
   constructor(
     private readonly token: string,
-    readonly store: 'public' | 'private',
+    store: 'public' | 'private',
   ) {
-    this.name = `blob:${store}`;
+    this.access = store;
+  }
+
+  get name(): string {
+    return `blob:${this.access}`;
+  }
+
+  get store(): 'public' | 'private' {
+    return this.access;
   }
 
   async put(key: string, body: Buffer, options: PutOptions): Promise<StoredObject> {
+    try {
+      return await this.write(key, body, options);
+    } catch (error) {
+      // `BLOB_READ_WRITE_TOKEN` is normally a public store, but pointing it at a
+      // private one is a legal setup. Adopt the store's real access mode instead
+      // of failing every photo upload, and serve the photos through the media
+      // proxy (a private Blob URL cannot be loaded by a browser).
+      if (this.access === 'public' && isPrivateStoreError(error)) {
+        this.access = 'private';
+        logger.warn(
+          { key, store: 'private' },
+          'Blob store is private; writing photos with private access and serving them through /media',
+        );
+        return this.write(key, body, options);
+      }
+      throw error;
+    }
+  }
+
+  private async write(key: string, body: Buffer, options: PutOptions): Promise<StoredObject> {
     const result = await put(key, body, {
-      access: this.store,
+      access: this.access,
       token: this.token,
       contentType: options.contentType,
       addRandomSuffix: options.addRandomSuffix ?? false,
@@ -96,7 +143,7 @@ class BlobDriver implements StorageDriver {
       url: result.url,
       bytes: body.byteLength,
       checksum: createHash('sha256').update(body).digest('hex'),
-      store: this.store,
+      store: this.access,
     };
   }
 
@@ -156,7 +203,7 @@ class LocalDriver implements StorageDriver {
     await writeFile(full, body);
     return {
       key,
-      url: `${config.apiPublicUrl}/media/${key.split('/').map(encodeURIComponent).join('/')}`,
+      url: mediaObjectUrl(key),
       bytes: body.byteLength,
       checksum: createHash('sha256').update(body).digest('hex'),
       store: 'local',
@@ -251,9 +298,10 @@ function driverFor(store: StoredObject['store']): StorageDriver | null {
   if (store === 'private' && testOriginals) return testOriginals.driver;
   if (testStorage) return testStorage;
   if (store === 'private') {
-    return config.storage.originalsToken
-      ? blobDriver(config.storage.originalsToken, 'private')
-      : null;
+    // Photos live in the private store too when `BLOB_READ_WRITE_TOKEN` points
+    // at one, so fall back to the primary token before giving up.
+    const token = config.storage.originalsToken ?? config.storage.blobToken;
+    return token ? blobDriver(token, 'private') : null;
   }
   if (!config.storage.configured) return null;
   if (config.storage.mode === 'local') return localDriver;
@@ -293,11 +341,21 @@ export interface StorageStatus {
   mode: 'blob' | 'local';
   /** Where originals can be kept: a private store, the public store, or nowhere. */
   originals: 'private' | 'public' | 'none';
+  /**
+   * How photos are actually reached. `private` means the store rejected public
+   * writes and the API serves the bytes from `/media`; `none` means no store.
+   */
+  photos: 'public' | 'private' | 'local' | 'none';
 }
 
 export function storageStatus(): StorageStatus {
   if (testStorage) {
-    return { ready: true, mode: 'local', originals: testOriginals ? 'private' : 'public' };
+    return {
+      ready: true,
+      mode: 'local',
+      originals: testOriginals ? 'private' : 'public',
+      photos: testStorage.store,
+    };
   }
   return {
     ready: config.storage.configured,
@@ -307,7 +365,14 @@ export function storageStatus(): StorageStatus {
       : config.storage.originalsToken
         ? 'private'
         : 'public',
+    photos: photoAccess(),
   };
+}
+
+function photoAccess(): StorageStatus['photos'] {
+  if (!config.storage.configured) return 'none';
+  if (config.storage.mode === 'local') return 'local';
+  return config.storage.blobToken ? blobDriver(config.storage.blobToken, 'public').store : 'none';
 }
 
 export function buildStorageKey(parts: {
