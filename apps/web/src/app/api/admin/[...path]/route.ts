@@ -34,6 +34,7 @@ const ALLOWED_PREFIXES = new Set([
   'categories',
   'awards',
   'reports',
+  'reviews',
   'corrections',
   'editions',
   'publish-now',

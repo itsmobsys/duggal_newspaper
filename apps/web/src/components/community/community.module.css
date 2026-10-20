@@ -1,0 +1,457 @@
+/* Reader community: likes, dislikes, stars and reviews. Tokens live in globals.css. */
+
+/* ------------------------------------------------------------------ stars -- */
+.stars {
+  display: inline-flex;
+  gap: 2px;
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: 0;
+  vertical-align: -0.08em;
+}
+
+.starsCompact {
+  font-size: 0.8125rem;
+}
+
+.starOn {
+  color: var(--gold);
+}
+
+.starOff {
+  color: var(--rule-soft);
+}
+
+/* ------------------------------------------------------------------ votes -- */
+.voteBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule-soft);
+  border-left: 4px solid var(--ink);
+  background: var(--surface);
+}
+
+.voteHeading {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.voteButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.voteButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 12px;
+  border: 1px solid var(--rule-soft);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+.voteButton:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: var(--paper-2);
+}
+
+.voteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.voteButtonUp {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, var(--surface));
+  color: var(--green);
+}
+
+.voteButtonDown {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.voteCount {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.voteMeta {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.03em;
+  color: var(--ink-mute);
+}
+
+.voteNote,
+.voteError {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.voteNote {
+  color: var(--ink-mute);
+}
+
+.voteNote a {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.voteError {
+  color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- reviews -- */
+.reviewSection {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 2px solid var(--rule);
+}
+
+.reviewHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.reviewHeader h2 {
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--rule);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.reviewSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.summaryScore {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.summaryCount {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  line-height: 1.4;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.distribution {
+  display: grid;
+  gap: 3px;
+  min-width: 170px;
+}
+
+.distributionRow {
+  display: grid;
+  grid-template-columns: 34px 1fr 28px;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  color: var(--ink-mute);
+}
+
+.distributionTrack {
+  height: 5px;
+  background: var(--paper-2);
+  overflow: hidden;
+}
+
+.distributionFill {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+
+.reviewForm {
+  margin: var(--space-4) 0 var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--rule-soft);
+  background: var(--surface);
+}
+
+.formKicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.viewer {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-mute);
+}
+
+.ratingRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.starPicker {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.starPick {
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--rule-soft);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.starPick:hover,
+.starPick:focus-visible {
+  color: var(--gold);
+  transform: translateY(-1px);
+}
+
+.starPickOn {
+  color: var(--gold);
+}
+
+.ratingLabel {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-mute);
+}
+
+.counter {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  color: var(--ink-mute);
+}
+
+.counterOver {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.formNote {
+  margin: 0;
+  color: var(--ink-mute);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.signIn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 var(--space-5);
+  padding: var(--space-4);
+  border: 1px dashed var(--rule-soft);
+  background: var(--paper-2);
+}
+
+.signIn p {
+  flex: 1 1 260px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.reviewList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewCard {
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.reviewCard:first-child {
+  border-top: 1px solid var(--rule-soft);
+}
+
+.reviewTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px var(--space-3);
+  margin-bottom: 6px;
+}
+
+.reviewName {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.reviewMeta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.reviewTime {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.reviewBody {
+  margin: 0;
+  max-width: 72ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.reviewEdited {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  color: var(--ink-mute);
+}
+
+.statusNote {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border-left: 3px solid var(--gold);
+  background: var(--paper-2);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.myReview {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--rule-soft);
+  background: var(--paper);
+}
+
+.myReviewHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 6px;
+}
+
+.myReviewHead strong {
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.myReviewActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.loadMore {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+.emptyReviews {
+  padding: var(--space-5) 0;
+  color: var(--ink-mute);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+@media (min-width: 760px) {
+  .voteBar {
+    gap: var(--space-4);
+  }
+
+  .reviewForm {
+    padding: var(--space-5);
+  }
+
+  .reviewHeader {
+    align-items: center;
+  }
+}

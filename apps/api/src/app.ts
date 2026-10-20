@@ -8,6 +8,7 @@ import { verifyServiceRequest } from './lib/crypto.js';
 import './routes/helpers.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAuthRoutes } from './routes/auth.js';
+import { registerCommunityRoutes } from './routes/community.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerInternalRoutes } from './routes/internal.js';
 import { registerMediaRoutes } from './routes/media.js';
@@ -233,6 +234,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerHealthRoutes(app, options.db);
   await registerPublicRoutes(app, options.db);
   await registerAuthRoutes(app, options.db);
+  await registerCommunityRoutes(app, options.db);
   await registerAdminRoutes(app, options.db);
   await registerInternalRoutes(app, options.db);
   await registerMediaRoutes(app, options.db);

@@ -16,6 +16,7 @@ export interface SettingDef {
     | 'Moderation'
     | 'AI'
     | 'Appearance'
+    | 'Community'
     | 'Storage';
   public?: boolean;
   min?: number;
@@ -62,6 +63,10 @@ export interface SettingsValues {
   'appearance.front_page_limit': number;
   'appearance.show_awards': boolean;
   'appearance.ticker_count': number;
+
+  'community.voting_enabled': boolean;
+  'community.reviews_enabled': boolean;
+  'community.review_max_chars': number;
 
   'storage.soft_limit_mb': number;
   'storage.monthly_advanced_op_limit': number;
@@ -354,6 +359,33 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     max: 12,
   },
 
+  'community.voting_enabled': {
+    type: 'boolean',
+    default: true,
+    label: 'Enable likes and dislikes',
+    description: 'Global switch for story votes. Existing counts are kept when turned off.',
+    group: 'Community',
+    public: true,
+  },
+  'community.reviews_enabled': {
+    type: 'boolean',
+    default: true,
+    label: 'Enable reader reviews',
+    description: 'Lets signed-in readers rate stories and leave a written review.',
+    group: 'Community',
+    public: true,
+  },
+  'community.review_max_chars': {
+    type: 'number',
+    default: 1200,
+    label: 'Maximum review length',
+    description: 'Characters. Shorter reviews are easier to moderate and read.',
+    group: 'Community',
+    public: true,
+    min: 200,
+    max: 3000,
+  },
+
   // Vercel Blob Hobby is free but hard-capped (1 GB, 2,000 advanced operations
   // per month); going over locks the store for 30 days. These thresholds keep
   // the paper comfortably inside the allowance. Photos are refused past the
@@ -547,6 +579,7 @@ export interface PublicSettings {
   };
   content: { breakingEnabled: boolean };
   appearance: { frontPageLimit: number; showAwards: boolean; tickerCount: number };
+  community: { votingEnabled: boolean; reviewsEnabled: boolean; reviewMaxChars: number };
 }
 
 export function toPublicSettings(settings: Settings): PublicSettings {
@@ -572,6 +605,11 @@ export function toPublicSettings(settings: Settings): PublicSettings {
       frontPageLimit: settings['appearance.front_page_limit'],
       showAwards: settings['appearance.show_awards'],
       tickerCount: settings['appearance.ticker_count'],
+    },
+    community: {
+      votingEnabled: settings['community.voting_enabled'],
+      reviewsEnabled: settings['community.reviews_enabled'],
+      reviewMaxChars: settings['community.review_max_chars'],
     },
   };
 }

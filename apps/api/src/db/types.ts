@@ -152,6 +152,31 @@ export interface ArticleImageRow {
   original_pruned_at: string | null;
 }
 
+export interface ArticleVoteRow {
+  id: string;
+  article_id: string;
+  member_id: string;
+  value: -1 | 1;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArticleReviewRow {
+  id: string;
+  article_id: string;
+  member_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  rating: number;
+  body: string;
+  status: 'published' | 'pending' | 'hidden';
+  moderation_reason: string | null;
+  ip_hash?: string | null;
+  user_agent?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CategoryRow {
   slug: string;
   name: string;

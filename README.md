@@ -504,6 +504,26 @@ permission, and there is still no bot.
 Discord tells us the account exists, not that the person is who they claim to
 be offline. Do not present it as verification of anything else.
 
+### Likes, dislikes and reviews
+
+- Signed-in readers get one like or dislike per story. Clicking the same button
+  again removes the vote; switching sides moves it. Counts are public, the
+  voter's identity is not.
+- Readers can leave one **1–5 star review** per story. Reviews are tied to the
+  Discord member, can be edited or deleted by their author, and publish instantly
+  when they pass the spam checks.
+- Reviews containing links, blocked phrases or spam patterns are stored as
+  `pending`. They do not appear or count until an operator publishes them in
+  **Admin → Reviews**. Hiding a review removes it from the story and the average
+  while keeping it for audit.
+- The article page server-renders the published summary and adds it to the
+  `Article` JSON-LD as an `aggregateRating`, so search results can show stars.
+- Kill switches and the maximum review length live in **Admin → Settings →
+  Community**. The API exposes `GET/POST /public/votes` and
+  `GET/POST/DELETE /public/reviews`; the website reaches them through
+  `/api/community/*`, which keeps the reader session httpOnly and checks the
+  request origin.
+
 ---
 
 ## Editorial automation and safety
@@ -575,6 +595,7 @@ CSRF double-submit token and a same-origin request.
 | Editions | Inspect and rebuild a date |
 | Awards | See and add awards |
 | Reports | Reader complaints |
+| Reviews | Reader ratings and comments waiting for moderation |
 | Corrections | Correction requests and their status |
 | Categories | Add and enable sections |
 | Settings | Live configuration, including the kill switches |

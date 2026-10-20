@@ -7,6 +7,7 @@ import type {
   AdminUserRow,
   ArticleImageRow,
   ArticleRow,
+  ArticleReviewRow,
   AwardRow,
   CategoryRow,
   CorrectionRow,
@@ -113,6 +114,11 @@ const CorrectionActionSchema = z.object({
 const ReportActionSchema = z.object({
   status: z.enum(['open', 'resolved', 'dismissed']),
   note: z.string().trim().max(1000).optional(),
+});
+
+const ReviewModerationSchema = z.object({
+  status: z.enum(['published', 'hidden']),
+  note: z.string().trim().max(400).optional(),
 });
 
 const SettingsSchema = z.record(z.unknown());
@@ -1495,6 +1501,94 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
     reply.header('Content-Disposition', `attachment; filename="${id}-original.${extension}"`);
     reply.header('Cache-Control', 'private, no-store');
     return reply.send(buffer);
+  });
+
+  // ----------------------------------------------------------------- reviews
+  app.get('/admin/reviews', async (request) => {
+    await requireAdmin(db, request);
+    const query = (request.query ?? {}) as Record<string, string | undefined>;
+    const requested = (query.status ?? '').trim();
+    const status =
+      requested === 'published' || requested === 'hidden' || requested === 'all'
+        ? requested
+        : 'pending';
+    const { limit, offset } = parsePagination(request.query);
+    const where = status === 'all' ? '1 = 1' : 'r.status = ?';
+    const args = status === 'all' ? [] : [status];
+
+    const [rows, total] = await Promise.all([
+      db.all<
+        ArticleReviewRow & {
+          headline: string | null;
+          slug: string | null;
+          discord_username: string | null;
+        }
+      >(
+        `SELECT r.id, r.article_id, r.member_id, r.display_name, r.avatar_url, r.rating, r.body,
+                r.status, r.moderation_reason, r.created_at, r.updated_at,
+                a.headline, a.slug, m.discord_username
+           FROM article_reviews r
+           LEFT JOIN articles a ON a.id = r.article_id
+           LEFT JOIN members m ON m.id = r.member_id
+          WHERE ${where}
+          ORDER BY r.created_at DESC LIMIT ? OFFSET ?`,
+        [...args, limit, offset],
+      ),
+      db.get<{ total: number }>(
+        `SELECT COUNT(*) AS total FROM article_reviews r WHERE ${where}`,
+        args,
+      ),
+    ]);
+
+    return {
+      reviews: rows.map((row) => ({
+        ...row,
+        rating: Number(row.rating),
+        avatar_url: row.avatar_url,
+      })),
+      total: Number(total?.total ?? 0),
+      status,
+      limit,
+      offset,
+    };
+  });
+
+  app.patch<{ Params: { id: string } }>('/admin/reviews/:id', async (request) => {
+    const ctx = await requireAdmin(db, request);
+    const body = ReviewModerationSchema.parse(request.body ?? {});
+
+    const review = await db.get<ArticleReviewRow & { slug: string | null }>(
+      `SELECT r.*, a.slug FROM article_reviews r
+         LEFT JOIN articles a ON a.id = r.article_id
+        WHERE r.id = ?`,
+      [request.params.id],
+    );
+    if (!review) throw notFound('Review not found.');
+
+    await db.run(
+      'UPDATE article_reviews SET status = ?, moderation_reason = ?, updated_at = ? WHERE id = ?',
+      [
+        body.status,
+        body.note ?? (body.status === 'published' ? null : review.moderation_reason),
+        nowIso(),
+        review.id,
+      ],
+    );
+
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: body.status === 'published' ? 'review.publish' : 'review.hide',
+      targetType: 'article_review',
+      targetId: review.id,
+      detail: { articleId: review.article_id, note: body.note ?? null },
+      ipHash: clientIpHash(request),
+    });
+
+    if (review.slug) {
+      void revalidateWeb([`/article/${review.slug}`]);
+    }
+
+    return { ok: true, id: review.id, status: body.status };
   });
 
   // --------------------------------------------------------------- diagnostics

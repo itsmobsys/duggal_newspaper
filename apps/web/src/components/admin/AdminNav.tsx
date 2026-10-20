@@ -12,6 +12,7 @@ const LINKS: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: '/admin/editions', label: 'Editions' },
   { href: '/admin/awards', label: 'Awards' },
   { href: '/admin/reports', label: 'Reports' },
+  { href: '/admin/reviews', label: 'Reviews' },
   { href: '/admin/corrections', label: 'Corrections' },
   { href: '/admin/categories', label: 'Categories' },
   { href: '/admin/settings', label: 'Settings' },
