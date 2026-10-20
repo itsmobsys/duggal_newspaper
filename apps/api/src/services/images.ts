@@ -132,13 +132,3 @@ export async function processImage(
     originalMime: ORIGINAL_MIME[format] ?? 'application/octet-stream',
   };
 }
-
-/** Downscale a stored photo for the vision model (keeps token cost sane). */
-export async function toVisionDataUrl(buffer: Buffer, maxDimension = 1024): Promise<string> {
-  const jpeg = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: 'error' })
-    .rotate()
-    .resize({ width: maxDimension, height: maxDimension, fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 78, mozjpeg: true })
-    .toBuffer();
-  return `data:image/jpeg;base64,${jpeg.toString('base64')}`;
-}

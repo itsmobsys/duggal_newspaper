@@ -20,7 +20,6 @@ interface AiHealth {
   error?: string;
   configuredBaseUrl: string;
   rpmLimit: number;
-  visionEnabled: boolean;
   jsonMode: boolean;
 }
 
@@ -177,8 +176,6 @@ export default async function DiagnosticsPage(): Promise<React.JSX.Element> {
                   <dd>{health.modelsSeen}</dd>
                   <dt>JSON mode</dt>
                   <dd>{yesNo(health.jsonMode)}</dd>
-                  <dt>Vision</dt>
-                  <dd>{yesNo(health.visionEnabled)}</dd>
                   <dt>Rate limit</dt>
                   <dd>{health.rpmLimit} requests/min</dd>
                 </dl>

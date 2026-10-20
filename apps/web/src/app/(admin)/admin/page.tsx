@@ -38,7 +38,6 @@ interface StatsResponse {
   autonomy: {
     enabled: unknown;
     autoPublish: unknown;
-    holdHighRisk: unknown;
     editionHour: unknown;
     timezone: unknown;
   };
@@ -52,7 +51,6 @@ interface AiHealth {
   error?: string;
   configuredBaseUrl: string;
   rpmLimit: number;
-  visionEnabled: boolean;
   jsonMode: boolean;
 }
 
@@ -79,7 +77,6 @@ interface SubmissionListItem {
   anonymous: boolean;
   category: string | null;
   status: string;
-  misleadingRisk: number;
   createdAt: string;
 }
 
@@ -373,8 +370,6 @@ export default async function AdminOverviewPage(): Promise<React.JSX.Element> {
                     <dd>{formatNumber(health.modelsSeen)}</dd>
                     <dt>JSON mode</dt>
                     <dd>{health.jsonMode ? 'Enabled' : 'Disabled'}</dd>
-                    <dt>Vision</dt>
-                    <dd>{health.visionEnabled ? 'Enabled' : 'Disabled'}</dd>
                     <dt>Rate limit</dt>
                     <dd>{formatNumber(health.rpmLimit)} rpm</dd>
                     <dt>Endpoint</dt>

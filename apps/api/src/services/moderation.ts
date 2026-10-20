@@ -13,55 +13,6 @@ import type { Settings } from '../settings.js';
 import type { HeuristicSignals } from './ai/decide.js';
 import { contentHash } from '../lib/text.js';
 
-const ALLEGATION_TERMS = [
-  'scam',
-  'fraud',
-  'stole',
-  'stealing',
-  'theft',
-  'hacked',
-  'hacker',
-  'blackmail',
-  'extortion',
-  'abuse',
-  'abused',
-  'assault',
-  'harass',
-  'harassed',
-  'rape',
-  'molest',
-  'murder',
-  'killed',
-  'threat',
-  'threatened',
-  'police case',
-  'fir',
-  'arrested',
-  'lawsuit',
-  'defame',
-  'leaked',
-  'leak',
-  'cheated',
-  'cheating',
-  'affair',
-  'pregnant',
-  'std',
-  'hiv',
-  'cancer',
-  'diagnosis',
-  'suicide',
-  'self harm',
-  'kill myself',
-  'bomb',
-  'shoot',
-  'weapon',
-  'nude',
-  'nudes',
-  'sex',
-  'minor',
-  'underage',
-];
-
 const PRIVACY_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   {
     pattern: /\b(?:\+?91[-\s]?)?[6-9]\d{9}\b/g,
@@ -165,11 +116,7 @@ export function analyzeHeuristics(input: HeuristicInput): HeuristicReport {
   const allCapsRatio = letters.length > 40 ? upper.length / letters.length : 0;
   if (allCapsRatio > 0.7 && fullText.length > 200) {
     spamScore += 0.15;
-    reasons.push('Mostly ALL CAPS.');
   }
-
-  const normalized = normalizeForHash(fullText);
-  const hasAllegation = ALLEGATION_TERMS.some((term) => normalized.includes(term));
 
   for (const rule of PRIVACY_PATTERNS) {
     const hits = fullText.match(rule.pattern);
@@ -181,31 +128,12 @@ export function analyzeHeuristics(input: HeuristicInput): HeuristicReport {
     if (rule.pattern.test(fullText)) dangerous.push(rule.reason);
   }
 
-  // Allegations alone are only a risk signal when they target someone specific
-  // (a named entity, a handle, or a "he/she/they did X" construction).
-  const hasTarget =
-    /(?:@[a-z0-9_.]{2,32}|\b(?:he|she|they)\b|\b[a-z][a-z0-9_.]{2,}\s+(?:scammed|stole|abused|harassed|cheated|leaked))/i.test(
-      fullText,
-    );
-  let misleadingRisk = 0;
-  if (hasAllegation && hasTarget) {
-    misleadingRisk = 0.75;
-    reasons.push('Contains an allegation about an identifiable person.');
-  } else if (
-    /\b(?:breaking|confirmed|exclusive|sources say)\b/i.test(fullText) &&
-    !input.sourceUrl
-  ) {
-    misleadingRisk = 0.45;
-  }
-
-  for (const reason of privacy) {
-    reasons.push(reason);
-    misleadingRisk = Math.max(misleadingRisk, 0.7);
-  }
-  for (const reason of dangerous) {
-    reasons.push(reason);
-    misleadingRisk = Math.max(misleadingRisk, 0.95);
-  }
+  // Only concrete, publishable problems raise a review reason: private data,
+  // threats, dangerous instructions, publisher-flagged phrases and non-stop
+  // caps. Tone, sarcasm, profanity, gossip and unverified claims are editorial
+  // choices, not holds.
+  for (const reason of privacy) reasons.push(reason);
+  for (const reason of dangerous) reasons.push(reason);
   if (banned.length > 0) {
     reasons.push(`Contains publisher-flagged phrase(s): ${banned.join(', ')}.`);
   }
@@ -226,11 +154,9 @@ export function analyzeHeuristics(input: HeuristicInput): HeuristicReport {
   }
 
   spamScore = Math.min(1, Number(spamScore.toFixed(3)));
-  misleadingRisk = Math.min(1, Number(misleadingRisk.toFixed(3)));
 
   return {
     spamScore,
-    misleadingRisk,
     reviewReasons: reasons,
     blockedDomain,
     duplicateOf: null,

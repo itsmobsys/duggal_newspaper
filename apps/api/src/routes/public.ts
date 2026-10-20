@@ -406,7 +406,7 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
           anonymous ? 1 : 0,
           identityMode,
           heuristics.spamScore,
-          heuristics.misleadingRisk,
+          0,
           heuristics.contentHash,
           ipHash,
           (request.headers['user-agent'] ?? '').slice(0, 300),

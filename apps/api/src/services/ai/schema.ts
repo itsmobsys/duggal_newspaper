@@ -1,22 +1,8 @@
 import { z } from 'zod';
 
-export const AiCaptionSchema = z.object({
-  index: z.number().int().min(0).max(7),
-  caption: z.string().min(1).max(240),
-  alt: z.string().min(1).max(160),
-});
-
 export const AiReviewSchema = z.object({
   needed: z.boolean(),
   reasons: z.array(z.string().min(1).max(200)).max(8).default([]),
-  severity: z.enum(['none', 'low', 'medium', 'high']).default('none'),
-});
-
-export const AiSafetySchema = z.object({
-  spam_score: z.number().min(0).max(1),
-  duplicate_confidence: z.number().min(0).max(1).default(0),
-  misleading_risk: z.number().min(0).max(1).default(0),
-  notes: z.string().max(600).default(''),
 });
 
 export const AiResultSchema = z.object({
@@ -27,14 +13,11 @@ export const AiResultSchema = z.object({
   tags: z.array(z.string().min(1).max(32)).max(8).default([]),
   breaking: z.boolean().default(false),
   breaking_reason: z.string().max(300).default(''),
-  image_captions: z.array(AiCaptionSchema).max(8).default([]),
   review: AiReviewSchema,
-  safety: AiSafetySchema,
   summary: z.string().max(700).default(''),
 });
 
 export type AiResult = z.infer<typeof AiResultSchema>;
-export type AiCaption = z.infer<typeof AiCaptionSchema>;
 
 export const AiEditionSchema = z.object({
   headline: z.string().min(4).max(140),

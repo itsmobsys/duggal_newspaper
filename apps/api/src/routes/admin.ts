@@ -337,7 +337,6 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
       autonomy: {
         enabled: settings['autonomy.enabled'],
         autoPublish: settings['content.auto_publish'],
-        holdHighRisk: settings['moderation.hold_high_risk'],
         editionHour: settings['autonomy.edition_hour'],
         timezone: settings['site.timezone'],
       },
@@ -383,7 +382,6 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
         category: row.category_slug,
         status: row.status,
         spamScore: row.spam_score,
-        misleadingRisk: row.misleading_risk,
         reviewReasons: parseReviewReasons(row.review_reasons),
         aiModel: row.ai_model,
         aiAttempts: row.ai_attempts,
@@ -495,20 +493,13 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
           tags: [],
           breaking: false,
           breaking_reason: '',
-          image_captions: [],
-          review: { needed: false, reasons: [], severity: 'none' },
-          safety: {
-            spam_score: submission.spam_score,
-            duplicate_confidence: 0,
-            misleading_risk: submission.misleading_risk,
-            notes: 'Manually published from the original submission text.',
-          },
+          review: { needed: false, reasons: [] },
           summary: '',
         };
 
     const imageRows = images.map((image, index) => ({
       ...image,
-      caption: body.captions?.[index] ?? (parsedAi?.success ? image.caption : null),
+      caption: body.captions?.[index] ?? image.caption,
     }));
 
     const published = await publishArticle(db, {
@@ -517,13 +508,6 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
       ai: {
         ...baseAi,
         category: categorySlug,
-        image_captions: imageRows
-          .map((image, index) => ({
-            index,
-            caption: body.captions?.[index] ?? image.caption ?? '',
-            alt: image.alt_text ?? 'Submitted photograph attached to the story.',
-          }))
-          .filter((caption) => caption.caption.length > 0),
       },
       settings,
       breaking: body.breaking ?? false,
@@ -1276,7 +1260,6 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
       ...availability,
       configuredBaseUrl: config.ai.baseUrl,
       rpmLimit: config.ai.maxRpm,
-      visionEnabled: config.ai.vision,
       jsonMode: config.ai.jsonMode,
     };
   });

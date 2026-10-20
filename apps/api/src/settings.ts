@@ -54,10 +54,8 @@ export interface SettingsValues {
   'autonomy.recover_failed_daily': boolean;
   'autonomy.max_publishes_per_hour': number;
 
-  'moderation.hold_high_risk': boolean;
   'moderation.duplicate_threshold': number;
   'moderation.spam_threshold': number;
-  'moderation.misleading_threshold': number;
 
   'ai.voice_notes': string;
   'ai.body_paragraphs_min': number;
@@ -300,14 +298,6 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     max: 200,
   },
 
-  'moderation.hold_high_risk': {
-    type: 'boolean',
-    default: true,
-    label: 'Hold high-risk content',
-    description:
-      'Unproven criminal allegations, doxxing, threats and sexual content involving minors never auto-publish.',
-    group: 'Moderation',
-  },
   'moderation.duplicate_threshold': {
     type: 'number',
     default: 0.82,
@@ -326,16 +316,6 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     min: 0.3,
     max: 1,
   },
-  'moderation.misleading_threshold': {
-    type: 'number',
-    default: 0.6,
-    label: 'Misleading-claim hold threshold',
-    description: '0-1. AI-assessed risk of a viral but unverifiable claim.',
-    group: 'Moderation',
-    min: 0.3,
-    max: 1,
-  },
-
   'ai.voice_notes': {
     type: 'string',
     default:

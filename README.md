@@ -44,7 +44,7 @@ Vercel (Next.js)  ──────────────►  Render (Fastify
 2. Photos are `PUT` **directly** to the Render API (Vercel never proxies megabytes).
 3. The API validates the submission, hashes the content, stores originals, and
    enqueues an idempotent `process_submission` job.
-4. The worker leases the job, runs heuristics + the vision model, rewrites the
+4. The worker leases the job, runs deterministic heuristics, rewrites the
    copy, and either publishes or parks it for review.
 5. Publishing revalidates the relevant website paths. The site is statically
    rendered with ISR, so pages stay fast and fresh.
@@ -216,7 +216,7 @@ Open <http://localhost:3000> and <http://localhost:3000/admin>.
 | `AI_MAX_ATTEMPTS` | no | Default 5 |
 | `AI_TEMPERATURE` / `AI_MAX_TOKENS` | no | Defaults 0.9 / 2600 (answer budget) |
 | `AI_REASONING_HEADROOM_TOKENS` | no | Default 6000. Added to `AI_MAX_TOKENS` because Nemotron spends completion tokens on reasoning before writing the answer. |
-| `AI_JSON_MODE` / `AI_VISION` | no | Defaults `true` |
+| `AI_JSON_MODE` | no | Defaults `true`. Falls back to plain JSON parsing if the gateway rejects `response_format`. |
 | `SERVICE_SECRET` | yes | HMAC shared with Vercel (≥24 chars) |
 | `WORKER_TICK_TOKEN` | yes | Shared with GitHub Actions (≥24 chars) |
 | `SESSION_PEPPER` | yes | Admin session hashing (≥24 chars) |
@@ -467,13 +467,22 @@ enforces this structurally:
 
 - Every submission keeps its **original text and photos**; the AI output is a
   separate rewrite, attributed as AI-assisted.
-- Photos are never generated or replaced. The vision model may caption them;
-  the original file is what gets served.
+- Photos are never generated or replaced, and the AI desk never sees the photo
+  file. Captions come from the words the submitter attached; the original file
+  is what gets served.
 - Deterministic moderation runs before the model (blocked domains, banned
-  words, hold keywords, duplicate hashes, spam heuristics).
-- High-risk categories — unsupported allegations, private personal data,
-  medical/legal claims, dangerous instructions — are held for review.
-- Routine stories publish automatically (`content.auto_publish`).
+  words, private-data and danger patterns, duplicate hashes, spam heuristics).
+- The editorial hold list is short and concrete: credible threats, weapon or
+  drug or self-harm instructions, private data about a real person, sexual
+  content involving minors or non-consensual sexual content, slurs or hate on
+  a protected group, and active fraud or phishing. A hold must quote the
+  offending phrase.
+- Unverified claims, rumours, gossip, accusations, sarcasm, profanity, roasts,
+  controversial opinions and criticism of the powerful are **not** holds. The
+  desk is deliberately unhinged, not reckless: it hedges claims ("allegedly")
+  and never invents facts or fake verification.
+- Routine stories publish automatically (`content.auto_publish`). There is no
+  reputation-protection or "misleading risk" score gate.
 - Every publish, edit, delete, retry and settings change is written to the
   audit log with an actor and an IP hash.
 - If the AI is unavailable, submissions are parked, not lost. Retryable errors

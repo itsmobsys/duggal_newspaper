@@ -15,10 +15,6 @@ import {
 } from './ai/prompt.js';
 import { analyzeHeuristics, findDuplicate } from './moderation.js';
 import { findCategorySlug, publishArticle } from './publishing.js';
-import { toVisionDataUrl } from './images.js';
-import { getStorage } from './storage.js';
-import type { AiImageInput } from './ai/client.js';
-import type { Settings } from '../settings.js';
 
 /**
  * Marker stored on submissions that were paused because no AI key is configured.
@@ -92,7 +88,6 @@ export async function processSubmission(
     );
   }
 
-  const visionImages = await buildVisionImages(images, settings, log);
   const anonymous = submission.anonymous === 1 || submission.identity_mode === 'anonymous';
 
   const system = buildSubmissionSystemPrompt({
@@ -111,7 +106,6 @@ export async function processSubmission(
       discordHandle: submission.discord_handle,
       categorySlug: submission.category_slug,
       sourceUrl: submission.source_url,
-      imageCount: images.length,
       submittedAt: submission.created_at,
       timezone: settings['site.timezone'],
       serverName: settings['site.name'],
@@ -126,7 +120,6 @@ export async function processSubmission(
       purpose: 'process_submission',
       system,
       user,
-      images: visionImages,
       schema: AiResultSchema,
       onUsage: async (usage) => {
         await db.run(
@@ -238,11 +231,10 @@ export async function processSubmission(
 
   const now = nowIso();
   await db.run(
-    `UPDATE submissions SET spam_score = ?, misleading_risk = ?, duplicate_of = ?,
+    `UPDATE submissions SET spam_score = ?, duplicate_of = ?,
        duplicate_score = ?, content_hash = ?, updated_at = ? WHERE id = ?`,
     [
       decision.spamScore,
-      decision.misleadingRisk,
       decision.duplicateOf,
       duplicate.duplicateScore,
       heuristics.contentHash,
@@ -312,7 +304,7 @@ export async function processSubmission(
       [
         `aud_${Date.now().toString(32)}${Math.random().toString(32).slice(2, 8)}`,
         submission.id,
-        JSON.stringify({ reasons, severity: ai.review.severity }),
+        JSON.stringify({ reasons }),
         submission.ip_hash,
         now,
       ],
@@ -346,35 +338,6 @@ export async function processSubmission(
     },
     'submission published',
   );
-}
-
-async function buildVisionImages(
-  images: SubmissionImageRow[],
-  settings: Settings,
-  log: typeof logger,
-): Promise<AiImageInput[]> {
-  if (!config.ai.vision || images.length === 0) return [];
-  const limit = Math.min(
-    images.length,
-    config.ai.visionMaxImages,
-    settings['submissions.max_images'],
-  );
-  const storage = getStorage();
-  const inputs: AiImageInput[] = [];
-
-  for (let index = 0; index < limit; index += 1) {
-    const image = images[index]!;
-    try {
-      const buffer = await storage.read(image.storage_key, image.url);
-      inputs.push({ index, dataUrl: await toVisionDataUrl(buffer) });
-    } catch (error) {
-      log.warn(
-        { imageId: image.id, error: error instanceof Error ? error.message : String(error) },
-        'could not prepare image for vision analysis',
-      );
-    }
-  }
-  return inputs;
 }
 
 export async function getSubmissionWithImages(

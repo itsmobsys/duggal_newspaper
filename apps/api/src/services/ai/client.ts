@@ -4,12 +4,6 @@ import { logger } from '../../lib/logger.js';
 import { sanitizeUserText } from '../../lib/text.js';
 import type { z } from 'zod';
 
-export interface AiImageInput {
-  /** data:image/...;base64,... */
-  dataUrl: string;
-  index: number;
-}
-
 export interface AiUsageEvent {
   purpose: string;
   model: string;
@@ -28,7 +22,6 @@ export interface ChatJsonOptions<T extends z.ZodTypeAny> {
   purpose: string;
   system: string;
   user: string;
-  images?: AiImageInput[];
   schema: T;
   maxTokens?: number;
   temperature?: number;
@@ -209,7 +202,6 @@ async function rawCall(input: {
   purpose: string;
   system: string;
   user: string;
-  images: AiImageInput[];
   maxTokens: number;
   temperature: number;
   timeoutMs: number;
@@ -228,24 +220,13 @@ async function rawCall(input: {
     ? `${input.user}\n\n---\nYour previous answer was rejected: ${input.repair.error}\nPrevious answer:\n"""\n${input.repair.previous.slice(0, 12_000)}\n"""\nReturn ONLY the corrected JSON object. No markdown, no commentary.`
     : input.user;
 
-  const userContent = input.images.length
-    ? [
-        {
-          type: 'text',
-          text: `${textPart}\n\nPhotos are attached in this exact order: ${input.images.map((image) => image.index).join(', ')}.`,
-        },
-        ...input.images.map((image) => ({
-          type: 'image_url' as const,
-          image_url: { url: image.dataUrl },
-        })),
-      ]
-    : textPart;
-
+  // Text only: photos never leave our storage, so the model can never inspect
+  // or describe an image.
   const body: Record<string, unknown> = {
     model: config.ai.model,
     messages: [
       { role: 'system', content: input.system },
-      { role: 'user', content: userContent },
+      { role: 'user', content: textPart },
     ],
     temperature: input.temperature,
     top_p: 0.95,
@@ -460,7 +441,6 @@ export async function chatJson<T extends z.ZodTypeAny>(
   options: ChatJsonOptions<T>,
 ): Promise<{ data: z.infer<T>; raw: string; attempts: number; usage: AiUsageEvent }> {
   const maxAttempts = Math.max(1, options.maxAttempts ?? config.ai.maxAttempts);
-  const images = options.images ?? [];
   // AI_MAX_TOKENS is the answer budget. This model also bills reasoning against
   // the completion window, so the request budget is answer + reasoning headroom.
   let maxTokens = Math.min(
@@ -488,7 +468,6 @@ export async function chatJson<T extends z.ZodTypeAny>(
         purpose: options.purpose,
         system: options.system,
         user: options.user,
-        images,
         maxTokens,
         temperature,
         timeoutMs,

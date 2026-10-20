@@ -33,7 +33,6 @@ interface SubmissionListItem {
   category: string | null;
   status: string;
   spamScore: number;
-  misleadingRisk: number;
   reviewReasons: string[];
   aiModel: string | null;
   aiAttempts: number;
@@ -222,10 +221,8 @@ export default async function AdminSubmissionsPage({
                       </span>
                     </td>
                     <td className={styles.num}>
-                      <span
-                        title={`Misleading risk ${riskText(submission.misleadingRisk)} · spam ${riskText(submission.spamScore)}`}
-                      >
-                        {riskText(submission.misleadingRisk)}
+                      <span title={`Spam score ${riskText(submission.spamScore)}`}>
+                        {riskText(submission.spamScore)}
                       </span>
                     </td>
                     <td className={styles.num}>

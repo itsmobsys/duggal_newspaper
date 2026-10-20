@@ -5,7 +5,6 @@ export type DecisionAction = 'publish' | 'hold' | 'reject' | 'defer';
 
 export interface HeuristicSignals {
   spamScore: number;
-  misleadingRisk: number;
   reviewReasons: string[];
   blockedDomain: boolean;
   duplicateOf: string | null;
@@ -27,32 +26,34 @@ export interface Decision {
   reasons: string[];
   breaking: boolean;
   spamScore: number;
-  misleadingRisk: number;
   duplicateOf: string | null;
   deferredSeconds: number;
 }
 
 /**
  * The autonomous editor's final gate. Pure function so the rules are testable
- * and auditable. Safety always beats autonomy.
+ * and auditable.
+ *
+ * Editorial policy: the desk publishes by default. A hold needs a concrete
+ * violation from the short list in the editor prompt, or a mechanical problem
+ * with the submission itself. "Unverified", "risky", "controversial" and
+ * "could offend someone" are not reasons: the copy is already hedged, and
+ * protecting reputations is not the desk's job.
  */
 export function decideOutcome(input: DecisionInput): Decision {
   const { ai, settings, heuristics } = input;
-  const spamScore = Math.max(ai.safety.spam_score, heuristics.spamScore);
-  const misleadingRisk = Math.max(ai.safety.misleading_risk, heuristics.misleadingRisk);
+  const spamScore = heuristics.spamScore;
   const duplicateOf = heuristics.duplicateOf;
 
   const breakingAllowed =
     ai.breaking &&
     settings['content.breaking_enabled'] &&
-    ai.review.severity === 'none' &&
     !ai.review.needed &&
     input.breakingLastSixHours < 2;
 
   const base = {
     breaking: breakingAllowed,
     spamScore,
-    misleadingRisk,
     duplicateOf,
     deferredSeconds: 0,
   };
@@ -61,7 +62,7 @@ export function decideOutcome(input: DecisionInput): Decision {
     return {
       ...base,
       action: 'hold',
-      reasons: ['AI is not configured; nothing can be published responsibly.'],
+      reasons: ['AI is not configured; nothing can be published until a model is connected.'],
     };
   }
 
@@ -69,19 +70,11 @@ export function decideOutcome(input: DecisionInput): Decision {
     return { ...base, action: 'reject', reasons: ['Source domain is blocked by the publisher.'] };
   }
 
-  if (spamScore >= 0.95 && sideSpam(ai, heuristics)) {
-    return { ...base, action: 'reject', reasons: ['High-confidence spam.'] };
-  }
-
-  if (settings['moderation.hold_high_risk'] && ai.review.severity === 'high') {
+  if (spamScore >= 0.95 && sideSpam(heuristics)) {
     return {
       ...base,
-      action: 'hold',
-      reasons: [
-        ...ai.review.reasons,
-        ...heuristics.reviewReasons,
-        'High-risk content requires a human editor.',
-      ],
+      action: 'reject',
+      reasons: ['High-confidence spam: ad copy, link farming or off-platform solicitation.'],
     };
   }
 
@@ -89,7 +82,9 @@ export function decideOutcome(input: DecisionInput): Decision {
     return {
       ...base,
       action: 'hold',
-      reasons: [...ai.review.reasons, ...heuristics.reviewReasons].filter(Boolean),
+      reasons: ai.review.reasons.length
+        ? ai.review.reasons
+        : ['The editor flagged a rule from the hold list without quoting it.'],
     };
   }
 
@@ -102,34 +97,36 @@ export function decideOutcome(input: DecisionInput): Decision {
       ...base,
       action: 'hold',
       reasons: [
-        `Likely duplicate (${Math.round(heuristics.duplicateScore * 100)}% match) of an earlier submission.`,
+        `Duplicate (${Math.round(heuristics.duplicateScore * 100)}% match) of submission ${duplicateOf}. Publish the original instead or change the story.`,
       ],
     };
   }
 
   if (spamScore >= settings['moderation.spam_threshold']) {
-    return { ...base, action: 'hold', reasons: ['Spam score above the publishing threshold.'] };
-  }
-
-  if (misleadingRisk >= settings['moderation.misleading_threshold']) {
     return {
       ...base,
       action: 'hold',
       reasons: [
-        `Misleading-claim risk ${Math.round(misleadingRisk * 100)}% is above the publishing threshold.`,
+        `Spam score ${Math.round(spamScore * 100)}% is above the ${Math.round(
+          settings['moderation.spam_threshold'] * 100,
+        )}% threshold. Remove ad copy, repeated links or contact solicitation and resubmit.`,
       ],
     };
   }
 
   if (!settings['autonomy.enabled'] || !settings['content.auto_publish']) {
-    return { ...base, action: 'hold', reasons: ['Auto-publishing is disabled in site settings.'] };
+    return {
+      ...base,
+      action: 'hold',
+      reasons: ['Auto-publishing is switched off in site settings.'],
+    };
   }
 
   if (input.publishedLastHour >= settings['autonomy.max_publishes_per_hour']) {
     return {
       ...base,
       action: 'defer',
-      reasons: ['Publishing throttle reached; retrying shortly.'],
+      reasons: ['Hourly publishing limit reached; retrying shortly.'],
       deferredSeconds: 300,
     };
   }
@@ -137,7 +134,6 @@ export function decideOutcome(input: DecisionInput): Decision {
   return { ...base, action: 'publish', reasons: [] };
 }
 
-function sideSpam(ai: AiResult, heuristics: HeuristicSignals): boolean {
-  if (heuristics.spamScore >= 0.9) return true;
-  return ai.safety.spam_score >= 0.95 && heuristics.linkCount >= 3;
+function sideSpam(heuristics: HeuristicSignals): boolean {
+  return heuristics.spamScore >= 0.9 || heuristics.linkCount >= 3;
 }

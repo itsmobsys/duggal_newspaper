@@ -91,8 +91,6 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
   const editionDate = nextEditionDate(new Date(), settings['site.timezone']);
   const articleId = newId('art');
 
-  const captionsByIdx = new Map(ai.image_captions.map((caption) => [caption.index, caption]));
-
   await db.transaction(async (tx) => {
     await tx.run(
       `INSERT INTO articles (id, slug, submission_id, headline, dek, body, original_body, category_slug,
@@ -115,7 +113,7 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
         JSON.stringify(tags),
         input.breaking ? 1 : 0,
         input.overrides?.placement ?? 'standard',
-        Math.round((ai.safety.misleading_risk < 0.3 ? 60 : 40) + Math.random() * 8),
+        Math.round(55 + Math.random() * 8),
         input.overrides?.editorNote ?? null,
         submission.source_url,
         config.ai.model,
@@ -129,7 +127,6 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
 
     let position = 0;
     for (const image of input.images) {
-      const caption = captionsByIdx.get(position);
       await tx.run(
         `INSERT INTO article_images (id, article_id, upload_id, storage_key, thumb_key, url, thumb_url,
            mime, bytes, width, height, checksum, caption, alt_text, attribution, position, created_at,
@@ -148,8 +145,8 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
           image.width,
           image.height,
           image.checksum,
-          caption?.caption ?? image.caption ?? 'A photo submitted with the story.',
-          caption?.alt ?? image.alt_text ?? 'Submitted photograph attached to the story.',
+          image.caption ?? 'A photo submitted with the story.',
+          image.alt_text ?? 'Submitted photograph attached to the story.',
           anonymous ? 'Submitted photo' : `Photo: ${authorDisplay}`,
           position,
           now,

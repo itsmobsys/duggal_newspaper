@@ -59,11 +59,6 @@ const rawSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((value) => value === 'true'),
-  AI_VISION: z
-    .enum(['true', 'false'])
-    .default('true')
-    .transform((value) => value === 'true'),
-  AI_VISION_MAX_IMAGES: z.coerce.number().int().min(0).max(4).default(3),
 
   SERVICE_SECRET: z.string().optional(),
   WORKER_TICK_TOKEN: z.string().optional(),
@@ -193,8 +188,6 @@ export interface AppConfig {
     maxTokens: number;
     reasoningHeadroomTokens: number;
     jsonMode: boolean;
-    vision: boolean;
-    visionMaxImages: number;
   };
   serviceSecret: string;
   workerTickToken: string;
@@ -257,8 +250,6 @@ export const config: AppConfig = {
     maxTokens: raw.AI_MAX_TOKENS,
     reasoningHeadroomTokens: raw.AI_REASONING_HEADROOM_TOKENS,
     jsonMode: raw.AI_JSON_MODE,
-    vision: raw.AI_VISION,
-    visionMaxImages: raw.AI_VISION_MAX_IMAGES,
   },
   serviceSecret,
   workerTickToken,

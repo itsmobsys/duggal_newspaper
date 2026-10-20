@@ -50,7 +50,7 @@ interface SubmissionRecord {
   review_reason: string | null;
   reviewReasons: string[];
   spam_score: number;
-  misleading_risk: number;
+  duplicate_score: number | null;
   ai_model: string | null;
   ai_attempts: number;
   ai_last_error: string | null;
@@ -130,10 +130,6 @@ function readText(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
-function readNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
 function readBoolean(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
 }
@@ -174,15 +170,9 @@ export default async function AdminSubmissionDetailPage({
   const { submission, images, article } = data;
   const ai = asRecord(submission.aiResult);
   const review = ai ? asRecord(ai.review) : null;
-  const safety = ai ? asRecord(ai.safety) : null;
 
   const reviewNeeded = review ? readBoolean(review.needed) : null;
-  const severity = review ? readText(review.severity) : null;
   const aiReasons = review ? readTextList(review.reasons) : [];
-  const aiRisk = safety ? readNumber(safety.misleading_risk) : null;
-  const aiSpam = safety ? readNumber(safety.spam_score) : null;
-  const aiDuplicate = safety ? readNumber(safety.duplicate_confidence) : null;
-  const aiNotes = safety ? readText(safety.notes) : null;
   const aiSummary = ai ? readText(ai.summary) : null;
   const aiHeadline = ai ? readText(ai.headline) : null;
 
@@ -190,7 +180,7 @@ export default async function AdminSubmissionDetailPage({
     reviewNeeded === null
       ? 'Unknown'
       : reviewNeeded
-        ? `Held for review${severity ? ` · ${severity} severity` : ''}`
+        ? 'Held by the editorial gate'
         : 'Cleared for publication';
 
   const sourceUrl = safeExternalUrl(submission.source_url);
@@ -302,8 +292,6 @@ export default async function AdminSubmissionDetailPage({
               </dd>
               <dt>Spam score</dt>
               <dd>{scoreText(submission.spam_score)}</dd>
-              <dt>Misleading risk</dt>
-              <dd>{scoreText(submission.misleading_risk)}</dd>
               <dt>AI attempts</dt>
               <dd>{submission.ai_attempts}</dd>
               <dt>Processed</dt>
@@ -326,12 +314,10 @@ export default async function AdminSubmissionDetailPage({
               <dd>{submission.ai_model || '—'}</dd>
               <dt>Decision</dt>
               <dd>{decision}</dd>
-              <dt>AI risk</dt>
-              <dd>{aiRisk === null ? '—' : scoreText(aiRisk)}</dd>
-              <dt>AI spam</dt>
-              <dd>{aiSpam === null ? '—' : scoreText(aiSpam)}</dd>
               <dt>Duplicate</dt>
-              <dd>{aiDuplicate === null ? '—' : scoreText(aiDuplicate)}</dd>
+              <dd>
+                {submission.duplicate_score === null ? '—' : scoreText(submission.duplicate_score)}
+              </dd>
             </dl>
 
             {aiReasons.length > 0 ? (
@@ -341,8 +327,6 @@ export default async function AdminSubmissionDetailPage({
                 ))}
               </ul>
             ) : null}
-
-            {aiNotes ? <p className={styles.actionNote}>{aiNotes}</p> : null}
 
             {submission.aiResult === null ? (
               <p className={styles.emptyLine}>

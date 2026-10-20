@@ -166,7 +166,8 @@ export default async function StandardsPage(): Promise<React.JSX.Element> {
             Photographs are optional attachments on submissions, sent by the readers who filed the
             stories. Every file is validated, re-encoded, stripped of metadata and stored under a
             random key before it is served. The image is never generated, content-edited or
-            replaced. The vision model may caption a photo. It cannot draw one.
+            replaced, and the AI desk never sees or captions your photo file — captions come from
+            the words you attach to the submission, if any.
           </p>
           <p>
             The submission form enforces the configured limits on how many photos a story may carry

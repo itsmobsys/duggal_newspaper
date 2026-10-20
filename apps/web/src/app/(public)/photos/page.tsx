@@ -146,7 +146,7 @@ export default async function PhotosPage({
           Photos are optional attachments on reader submissions. Each file is validated, re-encoded
           and stripped of metadata before it is served. The picture is never generated,
           content-edited or swapped for another, and stories without pictures run without them. The
-          vision model may write a caption; it never draws the image.
+          AI desk never reads or captions your file; any caption is the one you wrote yourself.
         </p>
       </aside>
     </div>
