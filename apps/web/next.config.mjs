@@ -23,6 +23,13 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  async rewrites() {
+    // Photos are public and immutable. Routing them through this origin lets
+    // the Vercel edge cache them once instead of every reader hitting Render.
+    const apiBase = (process.env.API_BASE_URL ?? '').replace(/\/$/, '');
+    if (!apiBase) return [];
+    return [{ source: '/media/:path*', destination: `${apiBase}/media/:path*` }];
+  },
   async headers() {
     // Uploads go straight from the browser to the Render API, which is a
     // different origin. Production is HTTPS; local development talks to
@@ -52,6 +59,12 @@ const nextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           { key: 'Content-Security-Policy', value: csp },
         ],
+      },
+      {
+        // Proxied uploads keep the API's immutable caching, restated here so
+        // the edge never revalidates a photo that can never change.
+        source: '/media/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
       {
         // The admin console must never be indexed or cached by a proxy.

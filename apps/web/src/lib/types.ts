@@ -108,7 +108,6 @@ export interface ArticleListItem {
   publishedAt: string | null;
   sourceUrl: string | null;
   image: ArticleImageView | null;
-  imageCount: number;
 }
 
 export interface ArticleImageView {

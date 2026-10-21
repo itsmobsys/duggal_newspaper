@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { safeQuery, safeQueryOne } from './db';
 import { todayIn } from './format';
 import { excerptFrom } from './prose';
@@ -28,7 +29,9 @@ interface ArticleRow {
   slug: string;
   headline: string;
   dek: string | null;
-  body: string;
+  /** Detail queries select the full body; list queries only fetch a short excerpt. */
+  body: string | null;
+  excerpt_source: string;
   category_slug: string;
   category_name: string | null;
   category_accent: string | null;
@@ -85,10 +88,10 @@ interface AwardRow {
 }
 
 const ARTICLE_COLUMNS = `
-  a.id, a.slug, a.headline, a.dek, a.body, a.category_slug, a.author_display, a.identity_mode,
+  a.id, a.slug, a.headline, a.dek, a.category_slug, a.author_display, a.identity_mode,
   a.tags, a.breaking, a.featured, a.placement, a.reading_minutes, a.edition_date, a.published_at,
   a.source_url, c.name AS category_name, c.accent AS category_accent,
-  (SELECT COUNT(*) FROM article_images ai WHERE ai.article_id = a.id) AS image_count`;
+  COALESCE(NULLIF(a.dek, ''), substr(a.body, 1, 400)) AS excerpt_source`;
 
 const ARTICLE_JOIN = `
   FROM articles a
@@ -133,7 +136,7 @@ function toListItem(row: ArticleRow, image: ArticleImageView | null): ArticleLis
     slug: row.slug,
     headline: row.headline,
     dek: row.dek,
-    excerpt: excerptFrom(row.dek || row.body, 230),
+    excerpt: excerptFrom(row.excerpt_source || row.body || '', 230),
     categorySlug: row.category_slug,
     categoryName: row.category_name ?? row.category_slug,
     categoryAccent: row.category_accent,
@@ -148,7 +151,6 @@ function toListItem(row: ArticleRow, image: ArticleImageView | null): ArticleLis
     publishedAt: row.published_at,
     sourceUrl: row.source_url,
     image,
-    imageCount: Number(row.image_count ?? 0),
   };
 }
 
@@ -343,7 +345,7 @@ export async function searchArticles(
   };
 }
 
-export async function getCategories(): Promise<CategoryView[]> {
+async function loadCategories(): Promise<CategoryView[]> {
   const rows = await safeQuery<{
     slug: string;
     name: string;
@@ -368,6 +370,9 @@ export async function getCategories(): Promise<CategoryView[]> {
     publishedCount: Number(row.published_count ?? 0),
   }));
 }
+
+/** Shared by the layout and the front page within one render. */
+export const getCategories = cache(loadCategories);
 
 export async function getCategory(slug: string): Promise<CategoryView | null> {
   const row = await safeQueryOne<{
@@ -395,9 +400,9 @@ export async function getCategory(slug: string): Promise<CategoryView | null> {
   };
 }
 
-export async function getArticle(slug: string): Promise<ArticleDetail | null> {
+async function loadArticle(slug: string): Promise<ArticleDetail | null> {
   const row = await safeQueryOne<ArticleRow>(
-    `SELECT ${ARTICLE_COLUMNS}, a.editor_note, a.ai_model, a.ai_generated ${ARTICLE_JOIN}
+    `SELECT ${ARTICLE_COLUMNS}, a.body, a.editor_note, a.ai_model, a.ai_generated ${ARTICLE_JOIN}
      WHERE a.slug = ? AND a.status = 'published'`,
     [slug],
   );
@@ -411,13 +416,16 @@ export async function getArticle(slug: string): Promise<ArticleDetail | null> {
   const views = images.map(toImage);
   return {
     ...toListItem(row, views[0] ?? null),
-    body: row.body,
+    body: row.body ?? '',
     editorNote: row.editor_note ?? null,
     aiModel: row.ai_model ?? null,
     aiGenerated: row.ai_generated === 1,
     images: views,
   };
 }
+
+/** React dedupes this across generateMetadata and the page within one render. */
+export const getArticle = cache(loadArticle);
 
 export async function getRelatedArticles(
   article: Pick<ArticleListItem, 'id' | 'categorySlug'>,
@@ -674,9 +682,48 @@ export async function getSitemapData(): Promise<{
   };
 }
 
-export async function listBreaking(limit: number): Promise<ArticleListItem[]> {
+async function loadBreaking(limit: number): Promise<ArticleListItem[]> {
   const { items } = await listArticles({ breaking: true, limit });
   return items;
+}
+
+/** The layout ticker and the front page ask for the same breaking list. */
+export const listBreaking = cache(loadBreaking);
+
+/**
+ * Cover strips for several categories in one round trip. The front page used to
+ * run a separate list query (plus its COUNT) for every strip.
+ */
+export async function getCategoryStrips(
+  slugs: string[],
+  perCategory = 3,
+): Promise<Map<string, ArticleListItem[]>> {
+  const unique = [...new Set(slugs.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+
+  const placeholders = unique.map(() => '?').join(', ');
+  const rows = await safeQuery<ArticleRow & { rn: number }>(
+    `SELECT * FROM (
+       SELECT ${ARTICLE_COLUMNS},
+         ROW_NUMBER() OVER (
+           PARTITION BY a.category_slug
+           ORDER BY a.published_at DESC, a.created_at DESC
+         ) AS rn
+       ${ARTICLE_JOIN}
+       WHERE a.status = 'published' AND a.category_slug IN (${placeholders})
+     ) WHERE rn <= ?
+     ORDER BY category_slug ASC, rn ASC`,
+    [...unique, perCategory],
+  );
+
+  const items = await attachImages(rows);
+  const byCategory = new Map<string, ArticleListItem[]>();
+  for (const item of items) {
+    const list = byCategory.get(item.categorySlug) ?? [];
+    list.push(item);
+    byCategory.set(item.categorySlug, list);
+  }
+  return byCategory;
 }
 
 export interface FrontPage {

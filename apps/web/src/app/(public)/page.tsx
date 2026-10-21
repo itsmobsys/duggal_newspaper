@@ -5,7 +5,13 @@ import { EmptyState } from '@/components/EmptyState';
 import { SectionHeading } from '@/components/SectionHeading';
 import { editionHeading, pluralise, relativeTime } from '@/lib/format';
 import { excerptFrom } from '@/lib/prose';
-import { getCategories, getFrontPage, getTagCloud, listArticles } from '@/lib/queries';
+import {
+  getCategories,
+  getCategoryStrips,
+  getFrontPage,
+  getTagCloud,
+  listArticles,
+} from '@/lib/queries';
 import { getPublicSettings } from '@/lib/settings';
 import styles from './front.module.css';
 
@@ -51,8 +57,9 @@ export default async function FrontPage(): Promise<React.JSX.Element> {
   ]);
 
   const stripCategories = categories.filter((category) => category.publishedCount > 0).slice(0, 3);
-  const stripResults = await Promise.all(
-    stripCategories.map((category) => listArticles({ category: category.slug, limit: 3 })),
+  const stripResults = await getCategoryStrips(
+    stripCategories.map((category) => category.slug),
+    3,
   );
   const latest = front.latest.slice(0, 8);
   const edition = front.edition;
@@ -130,9 +137,9 @@ export default async function FrontPage(): Promise<React.JSX.Element> {
             </section>
           ) : null}
 
-          {stripCategories.map((category, index) => {
-            const result = stripResults[index];
-            if (!result || result.items.length === 0) return null;
+          {stripCategories.map((category) => {
+            const result = stripResults.get(category.slug);
+            if (!result || result.length === 0) return null;
             return (
               <section
                 key={category.slug}
@@ -145,7 +152,7 @@ export default async function FrontPage(): Promise<React.JSX.Element> {
                   href={`/category/${category.slug}`}
                 />
                 <div className="listing-grid">
-                  {result.items.map((article) => (
+                  {result.map((article) => (
                     <ArticleCard
                       key={article.id}
                       article={article}

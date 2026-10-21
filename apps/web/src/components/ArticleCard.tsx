@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ArticleListItem } from '@/lib/types';
 import { formatDateShort, readingLabel } from '@/lib/format';
 import { clampHeadline } from '@/lib/prose';
+import { mediaSrc } from '@/lib/media';
 
 type Variant = 'lead' | 'top' | 'standard' | 'compact';
 
@@ -28,7 +29,7 @@ function media(article: ArticleListItem, priority: boolean): React.ReactNode {
     // carries stored width/height so the browser reserves space (no CLS).
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={image.thumbUrl ?? image.url}
+      src={mediaSrc(image.thumbUrl ?? image.url)}
       alt={image.alt ?? image.caption ?? article.headline}
       width={image.width ?? 1200}
       height={image.height ?? 675}

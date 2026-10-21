@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { SITE_DESCRIPTION_FALLBACK, SITE_NAME_FALLBACK, SITE_TAGLINE_FALLBACK } from './constants';
 import { safeQuery } from './db';
 import type { PublicSettings } from './types';
@@ -58,7 +59,7 @@ function asNumber(value: unknown, fallback: number, min: number, max: number): n
 }
 
 /** Load the public settings projection, merged over the defaults. */
-export async function getPublicSettings(): Promise<PublicSettings> {
+async function loadPublicSettings(): Promise<PublicSettings> {
   const values = defaultPublicSettings();
   const rows = await safeQuery<{ key: string; value: string }>('SELECT key, value FROM settings');
 
@@ -160,3 +161,6 @@ export async function getPublicSettings(): Promise<PublicSettings> {
 export function siteUrl(settings: PublicSettings): string {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? settings.site.url).replace(/\/$/, '');
 }
+
+/** Deduped across layout, page and metadata within one render. */
+export const getPublicSettings = cache(loadPublicSettings);

@@ -1,4 +1,5 @@
 import type { ArticleImageView } from '@/lib/types';
+import { mediaSrc } from '@/lib/media';
 
 export interface ArticleFigureProps {
   image: ArticleImageView;
@@ -17,7 +18,13 @@ export function ArticleFigure({
       {/* Deliberate: no optimizer on the free tier; dimensions are stored. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={image.url}
+        src={mediaSrc(image.url)}
+        srcSet={
+          image.thumbUrl
+            ? `${mediaSrc(image.thumbUrl)} 720w, ${mediaSrc(image.url)} 2000w`
+            : undefined
+        }
+        sizes="(max-width: 640px) 100vw, 720px"
         alt={alt}
         width={image.width ?? 1200}
         height={image.height ?? 800}

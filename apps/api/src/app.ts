@@ -152,6 +152,24 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     }
   });
 
+  /**
+   * Surface slow endpoints (Turso round trips, blob streams) without logging
+   * anything a reader sent: the route pattern only, never the raw URL.
+   */
+  app.addHook('onResponse', async (request, reply) => {
+    const elapsed = reply.elapsedTime;
+    if (elapsed < Number(process.env.SLOW_REQUEST_MS ?? 500)) return;
+    request.log.warn(
+      {
+        ms: Math.round(elapsed),
+        status: reply.statusCode,
+        method: request.method,
+        route: request.routeOptions.url ?? 'unknown',
+      },
+      'slow request',
+    );
+  });
+
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
       return reply.code(400).send({

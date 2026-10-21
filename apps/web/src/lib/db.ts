@@ -40,8 +40,26 @@ export function getDb(): Client {
 
 export type QueryArg = string | number | boolean | null;
 
+/** Log statements slower than this; set DB_SLOW_QUERY_MS=0 to log every query. */
+const SLOW_QUERY_MS = Number(process.env.DB_SLOW_QUERY_MS ?? 150);
+
+async function timed<T>(sql: string, run: () => Promise<T>): Promise<T> {
+  const started = performance.now();
+  try {
+    return await run();
+  } finally {
+    const elapsed = performance.now() - started;
+    if (elapsed >= SLOW_QUERY_MS) {
+      // Never log arguments: they can contain submissions and reader identity.
+      console.warn(
+        `[db] slow query ${Math.round(elapsed)}ms: ${sql.replace(/\s+/g, ' ').slice(0, 140)}`,
+      );
+    }
+  }
+}
+
 export async function query<T>(sql: string, args: QueryArg[] = []): Promise<T[]> {
-  const result = await getDb().execute({ sql, args: args as InValue[] });
+  const result = await timed(sql, () => getDb().execute({ sql, args: args as InValue[] }));
   return result.rows as unknown as T[];
 }
 

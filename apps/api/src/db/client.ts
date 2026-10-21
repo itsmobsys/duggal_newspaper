@@ -105,19 +105,36 @@ export function createDb(options: CreateDbOptions = {}): Db {
     return ready;
   };
 
+  /** Log statements slower than this; set DB_SLOW_QUERY_MS=0 to log every query. */
+  const slowQueryMs = Number(process.env.DB_SLOW_QUERY_MS ?? 150);
+  const timed = async <T>(sql: string, run: () => Promise<T>): Promise<T> => {
+    const started = performance.now();
+    try {
+      return await run();
+    } finally {
+      const elapsed = performance.now() - started;
+      if (elapsed >= slowQueryMs) {
+        // Arguments stay out of the log: they carry submissions and identity.
+        console.warn(
+          `[db] slow query ${Math.round(elapsed)}ms: ${sql.replace(/\s+/g, ' ').slice(0, 140)}`,
+        );
+      }
+    }
+  };
+
   const serial: TxApi = {
     async all<T = RowRecord>(sql: string, args: InArgs = []): Promise<T[]> {
       await ensureReady();
-      return rowsToObjects<T>(await client.execute({ sql, args }));
+      return rowsToObjects<T>(await timed(sql, () => client.execute({ sql, args })));
     },
     async get<T = RowRecord>(sql: string, args: InArgs = []): Promise<T | undefined> {
       await ensureReady();
-      const rows = rowsToObjects<T>(await client.execute({ sql, args }));
+      const rows = rowsToObjects<T>(await timed(sql, () => client.execute({ sql, args })));
       return rows[0];
     },
     async run(sql: string, args: InArgs = []): Promise<ResultSet> {
       await ensureReady();
-      return client.execute({ sql, args });
+      return timed(sql, () => client.execute({ sql, args }));
     },
   };
 
