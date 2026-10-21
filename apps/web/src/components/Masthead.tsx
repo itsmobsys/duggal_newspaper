@@ -51,10 +51,6 @@ export function Masthead({ settings, categories, editionDate }: MastheadProps): 
         <SearchBar />
       </div>
 
-      <div className="container masthead-search">
-        <SearchBar />
-      </div>
-
       <nav className="site-nav" aria-label="Sections">
         <div className="container">
           <ul>
