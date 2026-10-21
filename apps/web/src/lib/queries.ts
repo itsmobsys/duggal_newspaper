@@ -1,6 +1,13 @@
 import { safeQuery, safeQueryOne } from './db';
 import { todayIn } from './format';
 import { excerptFrom } from './prose';
+import {
+  buildSearchSnippet,
+  containsPattern,
+  normaliseSearchQuery,
+  prefixPattern,
+  type SearchHit,
+} from './search';
 import type {
   ArticleDetail,
   ArticleImageView,
@@ -251,6 +258,88 @@ export async function listArticles(filters: ArticleFilters = {}): Promise<Page<A
     total: Number(totalRow?.total ?? 0),
     limit,
     offset,
+  };
+}
+
+interface SearchRow {
+  slug: string;
+  headline: string;
+  dek: string | null;
+  body: string;
+  category_slug: string;
+  category_name: string | null;
+  category_accent: string | null;
+  published_at: string | null;
+  reading_minutes: number;
+}
+
+/**
+ * Search every published article in one query — the page never searches only
+ * what it has already loaded. Headline matches rank above tag/category matches,
+ * which rank above a mention buried in the body.
+ */
+export async function searchArticles(
+  query: string,
+  limit = 6,
+): Promise<{ hits: SearchHit[]; hasMore: boolean }> {
+  const cleaned = normaliseSearchQuery(query);
+  if (cleaned.length < 2) return { hits: [], hasMore: false };
+
+  const capped = Math.min(Math.max(limit, 1), 12);
+  const contains = containsPattern(cleaned);
+  const prefix = prefixPattern(cleaned);
+
+  const rows = await safeQuery<SearchRow>(
+    `SELECT a.slug, a.headline, a.dek, a.body, a.category_slug,
+            c.name AS category_name, c.accent AS category_accent,
+            a.published_at, a.reading_minutes
+     FROM articles a
+     LEFT JOIN categories c ON c.slug = a.category_slug
+     WHERE a.status = 'published'
+       AND (
+         a.headline LIKE ? ESCAPE '\\'
+         OR a.dek LIKE ? ESCAPE '\\'
+         OR a.body LIKE ? ESCAPE '\\'
+         OR a.tags LIKE ? ESCAPE '\\'
+         OR c.name LIKE ? ESCAPE '\\'
+       )
+     ORDER BY
+       CASE
+         WHEN lower(a.headline) = lower(?) THEN 0
+         WHEN a.headline LIKE ? ESCAPE '\\' THEN 1
+         WHEN a.tags LIKE ? ESCAPE '\\' OR c.name LIKE ? ESCAPE '\\' THEN 2
+         WHEN a.dek LIKE ? ESCAPE '\\' THEN 3
+         ELSE 4
+       END,
+       a.published_at DESC
+     LIMIT ?`,
+    [
+      contains,
+      contains,
+      contains,
+      contains,
+      contains,
+      cleaned,
+      prefix,
+      contains,
+      contains,
+      contains,
+      capped + 1,
+    ],
+  );
+
+  return {
+    hits: rows.slice(0, capped).map((row) => ({
+      slug: row.slug,
+      headline: row.headline,
+      dek: row.dek,
+      categoryName: row.category_name ?? row.category_slug,
+      categoryAccent: row.category_accent,
+      publishedAt: row.published_at,
+      readingMinutes: row.reading_minutes,
+      snippet: buildSearchSnippet(row.body, cleaned),
+    })),
+    hasMore: rows.length > capped,
   };
 }
 

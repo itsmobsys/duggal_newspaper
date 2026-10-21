@@ -527,6 +527,203 @@ hr {
   color: var(--ink-mute);
 }
 
+/* Masthead search ---------------------------------------------------------
+   Centred under the brand, one row on phones and desktop, results drop out of
+   the bar itself so the page underneath never shifts. */
+.masthead-search {
+  padding-bottom: 12px;
+}
+
+.search-bar {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.search-bar-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 9px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.search-bar-form:focus-within {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.search-bar-icon {
+  flex: none;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--ink-mute);
+}
+
+.search-bar-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 2px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.search-bar-input::placeholder {
+  color: var(--ink-mute);
+  opacity: 1;
+}
+
+.search-bar-input:focus {
+  outline: none;
+}
+
+.search-bar-input::-webkit-search-decoration,
+.search-bar-input::-webkit-search-cancel-button {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.search-bar-clear {
+  flex: none;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-mute);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-bar-clear:hover,
+.search-bar-clear:focus-visible {
+  color: var(--accent);
+}
+
+.search-bar-submit {
+  flex: none;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.search-bar-panel {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: min(65vh, 440px);
+  overflow-y: auto;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+}
+
+.search-bar-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.search-bar-option + .search-bar-option {
+  border-top: 1px solid var(--rule-soft);
+}
+
+.search-bar-option[aria-selected='true'] {
+  background: var(--paper-2);
+}
+
+.search-bar-option a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.search-bar-kicker {
+  display: flex;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.search-bar-kicker b {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.search-bar-headline {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.search-bar-headline mark {
+  padding: 0 1px;
+  background: var(--highlight);
+  color: inherit;
+}
+
+.search-bar-snippet {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ink-mute);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.search-bar-all {
+  display: block;
+  padding: 9px 12px;
+  border-top: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.search-bar-all:hover,
+.search-bar-all:focus-visible {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.search-bar-note {
+  margin: 0;
+  padding: 12px;
+  font-family: var(--font-serif);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ink-mute);
+}
+
+.search-bar-note strong {
+  color: var(--ink);
+}
+
+@media (max-width: 520px) {
+  .search-bar-submit {
+    display: none;
+  }
+}
+
 .site-nav {
   border-top: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);

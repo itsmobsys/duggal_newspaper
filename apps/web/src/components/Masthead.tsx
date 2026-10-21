@@ -3,6 +3,7 @@ import { formatDate, weekdayFor } from '@/lib/format';
 import type { CategoryView, PublicSettings } from '@/lib/types';
 import { AccountMenu } from './AccountMenu';
 import { GitHubLink } from './GitHubLink';
+import { SearchBar } from './SearchBar';
 
 export interface MastheadProps {
   settings: PublicSettings;
@@ -11,9 +12,8 @@ export interface MastheadProps {
 }
 
 /**
- * The front page furniture: dateline, wordmark, section nav. Deliberately a
- * server component — there is no interactivity beyond links, so it ships zero
- * JavaScript.
+ * The front page furniture: dateline, wordmark, section nav. A server component
+ * except for the search bar, which is the one interactive piece in the header.
  */
 export function Masthead({ settings, categories, editionDate }: MastheadProps): React.JSX.Element {
   return (
@@ -45,6 +45,14 @@ export function Masthead({ settings, categories, editionDate }: MastheadProps): 
           </span>
           <span className="brand-tagline">{settings.site.tagline}</span>
         </Link>
+      </div>
+
+      <div className="container masthead-search">
+        <SearchBar />
+      </div>
+
+      <div className="container masthead-search">
+        <SearchBar />
       </div>
 
       <nav className="site-nav" aria-label="Sections">

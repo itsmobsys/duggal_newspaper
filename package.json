@@ -17,7 +17,7 @@
     "lint": "npm --prefix apps/api run lint && npm --prefix apps/web run lint",
     "format": "npm --prefix apps/api run format && npm --prefix apps/web run format",
     "format:check": "npm --prefix apps/api run format:check && npm --prefix apps/web run format:check",
-    "test": "npm --prefix apps/api run test",
+    "test": "npm --prefix apps/api run test && npm --prefix apps/web run test",
     "verify": "npm run format:check && npm run typecheck && npm run lint && npm run test && npm run build",
     "db:migrate": "npm --prefix apps/api run db:migrate",
     "db:seed": "npm --prefix apps/api run db:seed",
