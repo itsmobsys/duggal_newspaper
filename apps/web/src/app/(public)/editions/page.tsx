@@ -4,7 +4,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { editionHeading, pluralise, weekdayFor } from '@/lib/format';
 import { excerptFrom } from '@/lib/prose';
-import { listEditions } from '@/lib/queries';
+import { listEditionsCached } from '@/lib/queries';
 import { getPublicSettings, siteUrl } from '@/lib/settings';
 import styles from './page.module.css';
 
@@ -68,7 +68,7 @@ export default async function EditionsPage({
 
   const [settings, editions] = await Promise.all([
     getPublicSettings(),
-    listEditions(PAGE_SIZE, (page - 1) * PAGE_SIZE),
+    listEditionsCached(PAGE_SIZE, (page - 1) * PAGE_SIZE),
   ]);
 
   const timeZone = settings.site.timezone;

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { EmptyState } from '@/components/EmptyState';
 import { pluralise } from '@/lib/format';
 import { clampHeadline } from '@/lib/prose';
-import { listPhotos, type PhotoView } from '@/lib/queries';
+import { listPhotosCached, type PhotoView } from '@/lib/queries';
 import { getPublicSettings, siteUrl } from '@/lib/settings';
 import styles from './page.module.css';
 
@@ -60,7 +60,7 @@ export default async function PhotosPage({
   const query = await searchParams;
   const page = parsePage(query.page);
 
-  const photos = await listPhotos(PAGE_SIZE, (page - 1) * PAGE_SIZE);
+  const photos = await listPhotosCached(PAGE_SIZE, (page - 1) * PAGE_SIZE);
 
   const totalPages = Math.max(1, Math.ceil(photos.total / PAGE_SIZE));
   const current = Math.min(page, totalPages);

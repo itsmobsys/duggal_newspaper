@@ -5,7 +5,7 @@ import { ArticleCard } from '@/components/ArticleCard';
 import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { pluralise } from '@/lib/format';
-import { getCategories, getCategory, listArticles } from '@/lib/queries';
+import { getCategories, getCategory, listArticlesCached } from '@/lib/queries';
 import { getPublicSettings } from '@/lib/settings';
 
 export const revalidate = 60;
@@ -56,7 +56,7 @@ export default async function CategoryPage({
   const [category, categories, result, settings] = await Promise.all([
     getCategory(slug),
     getCategories(),
-    listArticles({ category: slug, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
+    listArticlesCached({ category: slug, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     getPublicSettings(),
   ]);
 

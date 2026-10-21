@@ -5,7 +5,12 @@ import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { SectionHeading } from '@/components/SectionHeading';
 import { pluralise, todayIn } from '@/lib/format';
-import { getArchiveMonths, getTagCloud, listArticles, type ArchiveMonth } from '@/lib/queries';
+import {
+  getArchiveMonthsCached,
+  getTagCloudCached,
+  listArticlesCached,
+  type ArchiveMonth,
+} from '@/lib/queries';
 import { getPublicSettings } from '@/lib/settings';
 import styles from './page.module.css';
 
@@ -98,8 +103,8 @@ export default async function ArchivePage({
 
   const [settings, months, tags] = await Promise.all([
     getPublicSettings(),
-    getArchiveMonths(),
-    getTagCloud(18),
+    getArchiveMonthsCached(),
+    getTagCloudCached(18),
   ]);
 
   const timeZone = settings.site.timezone;
@@ -107,7 +112,7 @@ export default async function ArchivePage({
   const label = month ? monthLabel(month, timeZone) : null;
 
   const filtered = month
-    ? await listArticles({
+    ? await listArticlesCached({
         editionMonth: month,
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,

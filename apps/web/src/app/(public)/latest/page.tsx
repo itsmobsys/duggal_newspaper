@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArticleCard } from '@/components/ArticleCard';
 import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
-import { getCategories, listArticles } from '@/lib/queries';
+import { getCategories, listArticlesCached } from '@/lib/queries';
 import { getPublicSettings } from '@/lib/settings';
 
 export const revalidate = 60;
@@ -47,7 +47,7 @@ export default async function LatestPage({
   const [settings, categories, result] = await Promise.all([
     getPublicSettings(),
     getCategories(),
-    listArticles({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
+    listArticlesCached({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
   ]);
 
   const timeZone = settings.site.timezone;

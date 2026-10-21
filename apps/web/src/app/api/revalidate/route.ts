@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
@@ -29,6 +29,13 @@ const ALLOWED_PATTERNS = [
   /^\/category\/[a-z0-9-]{1,80}$/i,
   /^\/edition\/\d{4}-\d{2}-\d{2}$/,
 ];
+
+/**
+ * Tags on the cross-request read cache in lib/queries.ts and lib/settings.ts.
+ * Every publish, edit, delete or settings change hits this route, so clearing
+ * all of them keeps the dynamic listing pages as fresh as the ISR ones.
+ */
+const DATA_TAGS = ['articles', 'editions', 'photos', 'categories', 'settings'];
 
 function safeEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
@@ -77,6 +84,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   for (const path of paths) revalidatePath(path);
+  for (const tag of DATA_TAGS) revalidateTag(tag);
 
   return NextResponse.json({ revalidated: paths, count: paths.length });
 }

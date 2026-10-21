@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 import { safeQuery, safeQueryOne } from './db';
 import { todayIn } from './format';
@@ -372,7 +373,9 @@ async function loadCategories(): Promise<CategoryView[]> {
 }
 
 /** Shared by the layout and the front page within one render. */
-export const getCategories = cache(loadCategories);
+export const getCategories = cache(
+  unstable_cache(loadCategories, ['public:categories'], { revalidate: 300, tags: ['categories'] }),
+);
 
 export async function getCategory(slug: string): Promise<CategoryView | null> {
   const row = await safeQueryOne<{
@@ -688,7 +691,9 @@ async function loadBreaking(limit: number): Promise<ArticleListItem[]> {
 }
 
 /** The layout ticker and the front page ask for the same breaking list. */
-export const listBreaking = cache(loadBreaking);
+export const listBreaking = cache(
+  unstable_cache(loadBreaking, ['public:breaking'], { revalidate: 60, tags: ['articles'] }),
+);
 
 /**
  * Cover strips for several categories in one round trip. The front page used to
@@ -865,3 +870,41 @@ export async function listPublishedReviews(
   );
   return rows.map(toCommunityReview);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Cross-request read cache                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Listing pages read `searchParams`, so Next renders them per request and their
+ * page-level `revalidate` never applies. Their data only changes when the desk
+ * publishes, edits or deletes something, so cache the reads and purge them from
+ * /api/revalidate. The TTLs below are a safety net, not the invalidation plan.
+ */
+export const listArticlesCached = unstable_cache(
+  (filters: ArticleFilters = {}) => listArticles(filters),
+  ['public:articles'],
+  { revalidate: 60, tags: ['articles'] },
+);
+
+export const listEditionsCached = unstable_cache(
+  (limit = 12, offset = 0) => listEditions(limit, offset),
+  ['public:editions'],
+  { revalidate: 60, tags: ['editions'] },
+);
+
+export const listPhotosCached = unstable_cache(
+  (limit = 24, offset = 0) => listPhotos(limit, offset),
+  ['public:photos'],
+  { revalidate: 60, tags: ['photos'] },
+);
+
+export const getArchiveMonthsCached = unstable_cache(getArchiveMonths, ['public:archive-months'], {
+  revalidate: 60,
+  tags: ['articles'],
+});
+
+export const getTagCloudCached = unstable_cache(getTagCloud, ['public:tag-cloud'], {
+  revalidate: 60,
+  tags: ['articles'],
+});

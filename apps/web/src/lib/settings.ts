@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 import { SITE_DESCRIPTION_FALLBACK, SITE_NAME_FALLBACK, SITE_TAGLINE_FALLBACK } from './constants';
 import { safeQuery } from './db';
@@ -162,5 +163,11 @@ export function siteUrl(settings: PublicSettings): string {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? settings.site.url).replace(/\/$/, '');
 }
 
-/** Deduped across layout, page and metadata within one render. */
-export const getPublicSettings = cache(loadPublicSettings);
+/**
+ * Deduped within one render, and cached across requests: the masthead, the
+ * public feature flags and the AI label only change from the admin console,
+ * which purges the `settings` tag.
+ */
+export const getPublicSettings = cache(
+  unstable_cache(loadPublicSettings, ['public:settings'], { revalidate: 60, tags: ['settings'] }),
+);
