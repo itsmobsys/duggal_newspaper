@@ -108,7 +108,10 @@ export default async function StandardsPage(): Promise<React.JSX.Element> {
               The headline and the dek, written to fit the story as filed — not to make a bigger
               claim than the submission supports.
             </li>
-            <li>Captions for submitted photos, written from what the photo actually shows.</li>
+            <li>
+              Captions for submitted photos, written only from the words the submitter attached
+              &mdash; never from the image file, which the desk does not open.
+            </li>
             <li>Tags, and the section the story runs in.</li>
           </ul>
           <p>
@@ -210,14 +213,24 @@ export default async function StandardsPage(): Promise<React.JSX.Element> {
         <section aria-labelledby="anonymity-and-privacy">
           <h2 id="anonymity-and-privacy">Anonymity and privacy</h2>
           <p>
-            You can file without giving a name. Identity is self-declared and unverified — there is
-            no login, no OAuth and no Discord bot checking who you are. A Discord handle is credited
-            only when the submitter supplies one and does not choose to be anonymous.
+            Filing a story requires a Discord sign-in. Identity is not typed into a box: Discord
+            confirms the account through OAuth2, and the paper receives only that account&rsquo;s
+            public display name and avatar. Submissions and photo uploads are rejected without a
+            verified session, so the form is not the only thing standing between the paper and a
+            spoofed byline.
           </p>
           <p>
-            Anonymous submissions never publish a name or handle. The desk does store submissions
-            privately for moderation, and it hashes the submitting IP address for rate limiting and
-            abuse handling; that hash is not published and is not a name. The{' '}
+            Anonymous filing stays available unless the desk switches it off. An anonymous story
+            publishes no name, handle or avatar &mdash; it runs as <strong>Anonymous</strong>, and
+            the AI desk is told the submitter is anonymous and receives no identity at all. The desk
+            keeps a private record of which Discord account filed each submission, because somebody
+            has to answer for abuse, corrections and takedown requests; that record is visible only
+            to the paper&rsquo;s owner, is never published, and is not shared with readers or with
+            the model.
+          </p>
+          <p>
+            The desk also hashes the submitting IP address for rate limiting and abuse handling;
+            that hash is not published and is not a name. The{' '}
             <Link href="/status">status page</Link> shows a submission&rsquo;s progress from a
             private token.
           </p>

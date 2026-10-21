@@ -83,8 +83,9 @@ export default async function AboutPage(): Promise<React.JSX.Element> {
             <div>
               <strong>Submit</strong>
               <span>
-                A reader files a headline, the story, an optional source link, up to the configured
-                number of photos, a section, and a name, a Discord handle, or nothing at all.
+                A reader signs in with Discord, then files a headline, the story, an optional source
+                link, up to the configured number of photos and a section, and chooses to publish
+                under their Discord display name or as Anonymous.
               </span>
             </div>
           </li>
@@ -192,8 +193,10 @@ export default async function AboutPage(): Promise<React.JSX.Element> {
         <SectionHeading id="independence-heading" title="Independence" />
         <p className={styles.body}>
           This is an independent community project. It is not affiliated with, endorsed by, or
-          operated by Discord, and it has no Discord bot and no OAuth app. Discord is simply where
-          the community already talks and where tips usually start.
+          operated by Discord, and it has no Discord bot. Signing in to file a story uses
+          Discord&rsquo;s OAuth2 login, which shares only the account&rsquo;s public display name
+          and avatar &mdash; no messages, servers or friends. Discord is simply where the community
+          already talks and where tips usually start.
         </p>
         <p className={styles.body}>
           Nothing here is an official record of anything except itself. If the paper says something

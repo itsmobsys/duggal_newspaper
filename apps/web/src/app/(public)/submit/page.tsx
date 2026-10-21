@@ -100,7 +100,7 @@ export default async function SubmitPage(): Promise<React.JSX.Element> {
               <li>
                 <strong>Anonymity</strong>
                 {submissions.anonymousAllowed
-                  ? ' Available. Your name and Discord handle stay private; your account of events does not.'
+                  ? ' Available. Nothing about your Discord account is published — the story runs as Anonymous. The desk can see which account filed it but does not share that; your account of events does not.'
                   : ' Closed right now. Your Discord display name will be considered for publication.'}
               </li>
               <li>
