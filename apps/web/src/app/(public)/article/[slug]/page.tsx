@@ -24,6 +24,17 @@ import { getPublicSettings, siteUrl } from '@/lib/settings';
 import styles from './page.module.css';
 
 export const revalidate = 60;
+export const dynamicParams = true;
+
+/**
+ * The desk publishes continuously, so the archive is unknown at build time.
+ * Declaring the generator (empty on purpose) lets Next treat this segment as
+ * ISR: the first reader of a story renders it, everyone else gets the cached
+ * copy until the revalidation webhook or the 60s window refreshes it.
+ */
+export function generateStaticParams(): Array<{ slug: string }> {
+  return [];
+}
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
