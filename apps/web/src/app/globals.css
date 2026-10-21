@@ -147,8 +147,38 @@
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+/*
+ * Theme. The OS decides unless the reader picked something: the masthead
+ * toggle writes data-theme on <html>, and layout.tsx applies the stored choice
+ * before first paint. Keep the two dark blocks in sync — one is for an explicit
+ * choice, one for "follow this device".
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #14110d;
+  --paper-2: #1d1812;
+  --surface: #1a1611;
+  --ink: #f3ead9;
+  --ink-soft: #d9cbb3;
+  --ink-mute: #a99b83;
+  --rule: #f3ead9;
+  --rule-soft: #3b3328;
+  --accent: #ff6155;
+  --accent-ink: #1a0806;
+  --accent-soft: #3a1512;
+  --gold: #e0a63a;
+  --blue: #9db8f0;
+  --green: #7fd3ad;
+  --highlight: #4c3a0d;
+  --shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 40px -28px rgba(0, 0, 0, 0.9);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     color-scheme: dark;
     --paper: #14110d;
     --paper-2: #1d1812;
@@ -205,8 +235,14 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+:root[data-theme='dark'] body {
+  background-image:
+    radial-gradient(rgba(243, 234, 217, 0.04) 1px, transparent 1px),
+    radial-gradient(rgba(243, 234, 217, 0.03) 1px, transparent 1px);
+}
+
 @media (prefers-color-scheme: dark) {
-  body {
+  :root:not([data-theme]) body {
     background-image:
       radial-gradient(rgba(243, 234, 217, 0.04) 1px, transparent 1px),
       radial-gradient(rgba(243, 234, 217, 0.03) 1px, transparent 1px);
@@ -470,6 +506,40 @@ hr {
 .github-icon {
   width: 13px;
   height: 13px;
+  flex: none;
+}
+
+/* System / light / dark, sitting beside the GitHub chip. */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--rule-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1;
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-toggle svg {
   flex: none;
 }
 

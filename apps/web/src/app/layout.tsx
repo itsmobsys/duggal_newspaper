@@ -2,6 +2,12 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { getPublicSettings, siteUrl } from '@/lib/settings';
 
+/**
+ * Applies the stored theme before first paint so the wrong palette never
+ * flashes. Deliberately tiny and inline; keep in sync with lib/theme.ts.
+ */
+const THEME_BOOTSTRAP = `(function(){try{var m=localStorage.getItem('dbd-theme');if(m!=='light'&&m!=='dark')m='system';var d=window.matchMedia('(prefers-color-scheme: dark)').matches;var r=document.documentElement;r.dataset.theme=m==='system'?(d?'dark':'light'):m;r.dataset.themeMode=m;}catch(e){}})();`;
+
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -50,7 +56,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>): React.JSX.Element {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Applies a stored theme before paint, so the palette never flashes. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -4,6 +4,7 @@ import type { CategoryView, PublicSettings } from '@/lib/types';
 import { AccountMenu } from './AccountMenu';
 import { GitHubLink } from './GitHubLink';
 import { SearchBar } from './SearchBar';
+import { ThemeToggle } from './ThemeToggle';
 
 export interface MastheadProps {
   settings: PublicSettings;
@@ -35,6 +36,7 @@ export function Masthead({ settings, categories, editionDate }: MastheadProps): 
           <AccountMenu />
           <span className="dot" aria-hidden="true" />
           <GitHubLink />
+          <ThemeToggle />
         </div>
       </div>
 
