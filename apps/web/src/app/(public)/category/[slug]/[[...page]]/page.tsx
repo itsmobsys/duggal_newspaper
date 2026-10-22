@@ -5,6 +5,7 @@ import { ArticleCard } from '@/components/ArticleCard';
 import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { pluralise } from '@/lib/format';
+import { pagePath, readPageSegments } from '@/lib/pagination';
 import { getCategories, getCategory, listArticlesCached } from '@/lib/queries';
 import { getPublicSettings } from '@/lib/settings';
 
@@ -13,18 +14,19 @@ export const revalidate = 60;
 const PAGE_SIZE = 12;
 
 interface CategoryPageProps {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ page?: string | string[] }>;
+  params: Promise<{ slug: string; page?: string[] }>;
 }
 
-function parsePage(value: string | string[] | undefined): number {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const parsed = Number.parseInt(raw ?? '1', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+export const dynamicParams = true;
+
+/** Nothing to prerender; this only opts the segment into ISR on demand. */
+export function generateStaticParams(): Array<{ page: string[] }> {
+  return [];
 }
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { slug, page: pageSegments } = await params;
+  const page = readPageSegments(pageSegments) ?? 1;
   const [category, settings] = await Promise.all([getCategory(slug), getPublicSettings()]);
   if (!category) return { title: 'Section not found', robots: { index: false, follow: false } };
 
@@ -34,24 +36,23 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
   return {
     title: { absolute: `${category.name} — ${settings.site.name}` },
     description,
-    alternates: { canonical: `/category/${category.slug}` },
+    alternates: { canonical: pagePath(`/category/${category.slug}`, page) },
     openGraph: {
       type: 'website',
       siteName: settings.site.name,
       title: `${category.name} — ${settings.site.name}`,
       description,
-      url: `/category/${category.slug}`,
+      url: pagePath(`/category/${category.slug}`, page),
     },
   };
 }
 
 export default async function CategoryPage({
   params,
-  searchParams,
 }: CategoryPageProps): Promise<React.JSX.Element> {
-  const { slug } = await params;
-  const query = await searchParams;
-  const page = parsePage(query.page);
+  const { slug, page: pageSegments } = await params;
+  const page = readPageSegments(pageSegments);
+  if (page === null) notFound();
 
   const [category, categories, result, settings] = await Promise.all([
     getCategory(slug),
@@ -118,6 +119,7 @@ export default async function CategoryPage({
         total={result.total}
         limit={PAGE_SIZE}
         basePath={`/category/${category.slug}`}
+        hrefFor={(target) => pagePath(`/category/${category.slug}`, target)}
       />
     </div>
   );

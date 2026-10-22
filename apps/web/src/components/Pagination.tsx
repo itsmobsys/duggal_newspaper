@@ -7,6 +7,8 @@ export interface PaginationProps {
   basePath: string;
   /** Extra query parameters to preserve (category, q, tag…). */
   query?: Record<string, string | undefined>;
+  /** Override link targets, e.g. path segments instead of ?page=. */
+  hrefFor?: (page: number) => string;
 }
 
 function buildHref(
@@ -29,6 +31,7 @@ export function Pagination({
   limit,
   basePath,
   query = {},
+  hrefFor,
 }: PaginationProps): React.JSX.Element | null {
   const totalPages = Math.max(1, Math.ceil(total / Math.max(1, limit)));
   if (totalPages <= 1) return null;
@@ -39,6 +42,9 @@ export function Pagination({
   const pages: number[] = [];
   for (let index = windowStart; index <= windowEnd; index += 1) pages.push(index);
 
+  const href = (target: number): string =>
+    hrefFor ? hrefFor(target) : buildHref(basePath, query, target);
+
   return (
     <nav className="pagination" aria-label="Pagination">
       <span>
@@ -46,7 +52,7 @@ export function Pagination({
       </span>
       <span className="pages">
         {current > 1 ? (
-          <Link className="chip" href={buildHref(basePath, query, current - 1)} rel="prev">
+          <Link className="chip" href={href(current - 1)} rel="prev">
             ← Newer
           </Link>
         ) : null}
@@ -54,14 +60,14 @@ export function Pagination({
           <Link
             key={number}
             className="chip"
-            href={buildHref(basePath, query, number)}
+            href={href(number)}
             aria-current={number === current ? 'page' : undefined}
           >
             {number}
           </Link>
         ))}
         {current < totalPages ? (
-          <Link className="chip" href={buildHref(basePath, query, current + 1)} rel="next">
+          <Link className="chip" href={href(current + 1)} rel="next">
             Older →
           </Link>
         ) : null}

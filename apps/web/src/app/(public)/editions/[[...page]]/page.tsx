@@ -4,6 +4,8 @@ import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { editionHeading, pluralise, weekdayFor } from '@/lib/format';
 import { excerptFrom } from '@/lib/prose';
+import { notFound } from 'next/navigation';
+import { pagePath, readPageSegments } from '@/lib/pagination';
 import { listEditionsCached } from '@/lib/queries';
 import { getPublicSettings, siteUrl } from '@/lib/settings';
 import styles from './page.module.css';
@@ -13,13 +15,14 @@ export const revalidate = 60;
 const PAGE_SIZE = 12;
 
 interface EditionsPageProps {
-  searchParams: Promise<{ page?: string | string[] }>;
+  params: Promise<{ page?: string[] }>;
 }
 
-function parsePage(value: string | string[] | undefined): number {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const parsed = Number.parseInt(raw ?? '1', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+export const dynamicParams = true;
+
+/** Nothing to prerender; this only opts the segment into ISR on demand. */
+export function generateStaticParams(): Array<{ page: string[] }> {
+  return [];
 }
 
 /** Month name straight from ICU; the date is anchored at noon UTC so no zone can shift it. */
@@ -36,15 +39,15 @@ function assemblyLabel(value: string): string {
   return `Assembled by ${value}`;
 }
 
-export async function generateMetadata({ searchParams }: EditionsPageProps): Promise<Metadata> {
-  const query = await searchParams;
-  const page = parsePage(query.page);
+export async function generateMetadata({ params }: EditionsPageProps): Promise<Metadata> {
+  const { page: pageSegments } = await params;
+  const page = readPageSegments(pageSegments) ?? 1;
   const settings = await getPublicSettings();
   const baseUrl = siteUrl(settings);
 
   const title = page > 1 ? `Editions — page ${page}` : 'Editions';
   const description = `Every daily edition of ${settings.site.name}, one date at a time. Issues are assembled from reader submissions and go live at midnight IST.`;
-  const canonical = page > 1 ? `/editions?page=${page}` : '/editions';
+  const canonical = pagePath('/editions', page);
 
   return {
     title,
@@ -61,10 +64,11 @@ export async function generateMetadata({ searchParams }: EditionsPageProps): Pro
 }
 
 export default async function EditionsPage({
-  searchParams,
+  params,
 }: EditionsPageProps): Promise<React.JSX.Element> {
-  const query = await searchParams;
-  const page = parsePage(query.page);
+  const { page: pageSegments } = await params;
+  const page = readPageSegments(pageSegments);
+  if (page === null) notFound();
 
   const [settings, editions] = await Promise.all([
     getPublicSettings(),
@@ -150,7 +154,13 @@ export default async function EditionsPage({
         />
       )}
 
-      <Pagination page={page} total={editions.total} limit={PAGE_SIZE} basePath="/editions" />
+      <Pagination
+        page={page}
+        total={editions.total}
+        limit={PAGE_SIZE}
+        basePath="/editions"
+        hrefFor={(target) => pagePath('/editions', target)}
+      />
     </div>
   );
 }

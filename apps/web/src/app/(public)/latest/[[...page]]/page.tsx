@@ -4,6 +4,8 @@ import { ArticleCard } from '@/components/ArticleCard';
 import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { getCategories, listArticlesCached } from '@/lib/queries';
+import { notFound } from 'next/navigation';
+import { pagePath, readPageSegments } from '@/lib/pagination';
 import { getPublicSettings } from '@/lib/settings';
 
 export const revalidate = 60;
@@ -11,38 +13,40 @@ export const revalidate = 60;
 const PAGE_SIZE = 15;
 
 interface LatestPageProps {
-  searchParams: Promise<{ page?: string | string[] }>;
+  params: Promise<{ page?: string[] }>;
 }
 
-function parsePage(value: string | string[] | undefined): number {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const parsed = Number.parseInt(raw ?? '1', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+export const dynamicParams = true;
+
+/** Nothing to prerender; this only opts the segment into ISR on demand. */
+export function generateStaticParams(): Array<{ page: string[] }> {
+  return [];
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: LatestPageProps): Promise<Metadata> {
+  const { page: pageSegments } = await params;
+  const page = readPageSegments(pageSegments) ?? 1;
   const settings = await getPublicSettings();
   const description = `Every story printed in ${settings.site.name}, newest first.`;
 
   return {
     title: 'Latest',
     description,
-    alternates: { canonical: '/latest' },
+    alternates: { canonical: pagePath('/latest', page) },
     openGraph: {
       type: 'website',
       siteName: settings.site.name,
       title: `Latest — ${settings.site.name}`,
       description,
-      url: '/latest',
+      url: pagePath('/latest', page),
     },
   };
 }
 
-export default async function LatestPage({
-  searchParams,
-}: LatestPageProps): Promise<React.JSX.Element> {
-  const query = await searchParams;
-  const page = parsePage(query.page);
+export default async function LatestPage({ params }: LatestPageProps): Promise<React.JSX.Element> {
+  const { page: pageSegments } = await params;
+  const page = readPageSegments(pageSegments);
+  if (page === null) notFound();
 
   const [settings, categories, result] = await Promise.all([
     getPublicSettings(),
@@ -86,7 +90,13 @@ export default async function LatestPage({
         />
       )}
 
-      <Pagination page={page} total={result.total} limit={PAGE_SIZE} basePath="/latest" />
+      <Pagination
+        page={page}
+        total={result.total}
+        limit={PAGE_SIZE}
+        basePath="/latest"
+        hrefFor={(target) => pagePath('/latest', target)}
+      />
 
       {categories.length > 0 ? (
         <nav className="chips" aria-label="Browse sections" style={{ marginTop: 'var(--space-5)' }}>

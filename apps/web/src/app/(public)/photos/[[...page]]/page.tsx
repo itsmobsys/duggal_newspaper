@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { EmptyState } from '@/components/EmptyState';
 import { pluralise } from '@/lib/format';
 import { clampHeadline } from '@/lib/prose';
+import { notFound } from 'next/navigation';
+import { pagePath, readPageSegments } from '@/lib/pagination';
 import { listPhotosCached, type PhotoView } from '@/lib/queries';
 import { getPublicSettings, siteUrl } from '@/lib/settings';
 import styles from './page.module.css';
@@ -13,32 +15,33 @@ export const revalidate = 60;
 const PAGE_SIZE = 24;
 
 interface PhotosPageProps {
-  searchParams: Promise<{ page?: string | string[] }>;
+  params: Promise<{ page?: string[] }>;
 }
 
-function parsePage(value: string | string[] | undefined): number {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const parsed = Number.parseInt(raw ?? '1', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+export const dynamicParams = true;
+
+/** Nothing to prerender; this only opts the segment into ISR on demand. */
+export function generateStaticParams(): Array<{ page: string[] }> {
+  return [];
 }
 
 function photoPageHref(page: number): string {
-  return page > 1 ? `/photos?page=${page}` : '/photos';
+  return pagePath('/photos', page);
 }
 
 function altFor(photo: PhotoView): string {
   return photo.alt ?? photo.caption ?? photo.articleHeadline;
 }
 
-export async function generateMetadata({ searchParams }: PhotosPageProps): Promise<Metadata> {
-  const query = await searchParams;
-  const page = parsePage(query.page);
+export async function generateMetadata({ params }: PhotosPageProps): Promise<Metadata> {
+  const { page: pageSegments } = await params;
+  const page = readPageSegments(pageSegments) ?? 1;
   const settings = await getPublicSettings();
   const baseUrl = siteUrl(settings);
 
   const title = page > 1 ? `Photos — page ${page}` : 'Photos';
   const description = `Photographs submitted by readers and printed in ${settings.site.name}. Every image came in with a story; the desk captions photos but never generates them.`;
-  const canonical = page > 1 ? `/photos?page=${page}` : '/photos';
+  const canonical = pagePath('/photos', page);
 
   return {
     title,
@@ -54,11 +57,10 @@ export async function generateMetadata({ searchParams }: PhotosPageProps): Promi
   };
 }
 
-export default async function PhotosPage({
-  searchParams,
-}: PhotosPageProps): Promise<React.JSX.Element> {
-  const query = await searchParams;
-  const page = parsePage(query.page);
+export default async function PhotosPage({ params }: PhotosPageProps): Promise<React.JSX.Element> {
+  const { page: pageSegments } = await params;
+  const page = readPageSegments(pageSegments);
+  if (page === null) notFound();
 
   const photos = await listPhotosCached(PAGE_SIZE, (page - 1) * PAGE_SIZE);
 
