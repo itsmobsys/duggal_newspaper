@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { ArticleCard } from '@/components/ArticleCard';
 import { EmptyState } from '@/components/EmptyState';
 import { Pagination } from '@/components/Pagination';
 import { SectionHeading } from '@/components/SectionHeading';
 import { pluralise, todayIn } from '@/lib/format';
+import { archivePath, readArchiveSegments } from '@/lib/pagination';
 import {
   getArchiveMonthsCached,
   getTagCloudCached,
@@ -15,11 +17,12 @@ import { getPublicSettings } from '@/lib/settings';
 import styles from './page.module.css';
 
 export const revalidate = 60;
+export const dynamicParams = true;
 
 const PAGE_SIZE = 12;
 
 interface ArchivePageProps {
-  searchParams: Promise<{ month?: string | string[]; page?: string | string[] }>;
+  params: Promise<{ segments?: string[] }>;
 }
 
 interface YearGroup {
@@ -28,19 +31,9 @@ interface YearGroup {
   months: ArchiveMonth[];
 }
 
-function parsePage(value: string | string[] | undefined): number {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const parsed = Number.parseInt(raw ?? '1', 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
-}
-
-/** Accepts `YYYY-MM` only when the month is a real calendar month. */
-function parseMonth(value: string | string[] | undefined): string | null {
-  const raw = Array.isArray(value) ? value[0] : value;
-  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(`${raw}-01`)) return null;
-  const month = Number(raw.slice(5, 7));
-  if (!Number.isInteger(month) || month < 1 || month > 12) return null;
-  return raw;
+/** An empty list plus dynamicParams makes Next treat this segment as ISR. */
+export function generateStaticParams(): Array<{ segments: string[] }> {
+  return [];
 }
 
 /** "October 2026" without hand-rolling month names. */
@@ -68,17 +61,18 @@ function groupByYear(months: ArchiveMonth[]): YearGroup[] {
   return groups;
 }
 
-export async function generateMetadata({ searchParams }: ArchivePageProps): Promise<Metadata> {
-  const query = await searchParams;
+export async function generateMetadata({ params }: ArchivePageProps): Promise<Metadata> {
+  const parsed = readArchiveSegments((await params).segments);
+  if (!parsed) notFound();
+
   const settings = await getPublicSettings();
-  const month = parseMonth(query.month);
-  const label = month ? monthLabel(month, settings.site.timezone) : null;
+  const label = parsed.month ? monthLabel(parsed.month, settings.site.timezone) : null;
 
   const title = label ? `Archive — ${label}` : 'Archive';
   const description = label
     ? `Every story printed in an edition dated ${label} in ${settings.site.name}.`
     : `Every edition of ${settings.site.name}, month by month. The whole paper, kept on the record.`;
-  const canonical = month ? `/archive?month=${month}` : '/archive';
+  const canonical = archivePath(parsed.month, parsed.page);
 
   return {
     title,
@@ -95,11 +89,12 @@ export async function generateMetadata({ searchParams }: ArchivePageProps): Prom
 }
 
 export default async function ArchivePage({
-  searchParams,
+  params,
 }: ArchivePageProps): Promise<React.JSX.Element> {
-  const query = await searchParams;
-  const month = parseMonth(query.month);
-  const page = parsePage(query.page);
+  const parsed = readArchiveSegments((await params).segments);
+  if (!parsed) notFound();
+
+  const { month, page } = parsed;
 
   const [settings, months, tags] = await Promise.all([
     getPublicSettings(),
@@ -171,7 +166,7 @@ export default async function ArchivePage({
               total={filtered.total}
               limit={PAGE_SIZE}
               basePath="/archive"
-              query={{ month }}
+              hrefFor={(target) => archivePath(month, target)}
             />
           ) : null}
         </>
@@ -193,7 +188,7 @@ export default async function ArchivePage({
                     <li key={entry.month}>
                       <Link
                         className={styles.monthLink}
-                        href={`/archive?month=${entry.month}`}
+                        href={archivePath(entry.month, 1)}
                         aria-current={entry.month === currentMonth ? 'date' : undefined}
                       >
                         <span className={styles.monthName}>

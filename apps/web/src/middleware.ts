@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { COOKIE_ADMIN_SESSION, COOKIE_CSRF } from '@/lib/constants';
+import { archivePath } from '@/lib/pagination';
 
 /** Public listings whose page lives in the path, not in `?page=`. */
 const PAGED_LISTINGS = new Set(['/latest', '/editions', '/photos']);
@@ -19,6 +20,19 @@ function isPagedListing(pathname: string): boolean {
  */
 export function middleware(request: NextRequest): NextResponse {
   const { pathname, searchParams } = request.nextUrl;
+
+  if (pathname === '/archive') {
+    const legacyPage = searchParams.get('page');
+    const rawMonth = searchParams.get('month');
+    const month = rawMonth && /^\\d{4}-(0[1-9]|1[0-2])$/.test(rawMonth) ? rawMonth : null;
+    const parsedPage = legacyPage ? Number.parseInt(legacyPage, 10) : 1;
+    if (month || (Number.isInteger(parsedPage) && parsedPage > 1)) {
+      const url = request.nextUrl.clone();
+      url.pathname = archivePath(month, parsedPage > 1 ? parsedPage : 1);
+      url.search = '';
+      return NextResponse.redirect(url, 308);
+    }
+  }
 
   const legacyPage = searchParams.get('page');
   if (legacyPage && isPagedListing(pathname)) {
@@ -66,5 +80,6 @@ export const config = {
     '/editions',
     '/photos',
     '/category/:slug',
+    '/archive',
   ],
 };
