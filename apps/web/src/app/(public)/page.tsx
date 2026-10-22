@@ -9,8 +9,8 @@ import {
   getCategories,
   getCategoryStrips,
   getFrontPage,
-  getTagCloud,
-  listArticles,
+  getTagCloudCached,
+  listArticlesCached,
 } from '@/lib/queries';
 import { getPublicSettings } from '@/lib/settings';
 import styles from './front.module.css';
@@ -52,8 +52,8 @@ export default async function FrontPage(): Promise<React.JSX.Element> {
       timeZone,
     }),
     getCategories(),
-    getTagCloud(12),
-    listArticles({ limit: 10 }),
+    getTagCloudCached(12),
+    listArticlesCached({ limit: 10 }),
   ]);
 
   const stripCategories = categories.filter((category) => category.publishedCount > 0).slice(0, 3);
@@ -64,6 +64,13 @@ export default async function FrontPage(): Promise<React.JSX.Element> {
   const latest = front.latest.slice(0, 8);
   const edition = front.edition;
   const topics = tagCloud.filter((topic) => topic.tag.trim().length > 0);
+  const shown = new Set<string>([
+    ...(front.lead ? [front.lead.slug] : []),
+    ...front.top.map((article) => article.slug),
+    ...latest.map((article) => article.slug),
+    ...[...stripResults.values()].flat().map((article) => article.slug),
+  ]);
+  const railItems = justIn.items.filter((article) => !shown.has(article.slug));
 
   return (
     <div className="container">
@@ -204,11 +211,11 @@ export default async function FrontPage(): Promise<React.JSX.Element> {
             )}
           </section>
 
-          {justIn.items.length > 0 ? (
+          {railItems.length > 0 ? (
             <section className={`rail-panel ${styles.railPanel}`} aria-labelledby="just-in-heading">
               <h2 id="just-in-heading">Just in</h2>
               <ol className="rail-list">
-                {justIn.items.map((article, index) => (
+                {railItems.map((article, index) => (
                   <li className="rail-item" key={article.id}>
                     <span className="num rail-item__num" aria-hidden="true">
                       {String(index + 1).padStart(2, '0')}

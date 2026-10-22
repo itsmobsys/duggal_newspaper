@@ -373,7 +373,10 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
     }
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
     const rows = await db.all<SubmissionRow & { image_count: number }>(
-      `SELECT s.*, (SELECT COUNT(*) FROM submission_images si WHERE si.submission_id = s.id) as image_count
+      `SELECT s.id, s.headline, s.author_name, s.discord_handle, s.anonymous, s.category_slug,
+              s.status, s.spam_score, s.review_reasons, s.ai_model, s.ai_attempts, s.ai_last_error,
+              s.article_id, s.created_at, s.updated_at,
+              (SELECT COUNT(*) FROM submission_images si WHERE si.submission_id = s.id) as image_count
        FROM submissions s ${where} ORDER BY s.created_at DESC LIMIT ? OFFSET ?`,
       [...args, limit, offset],
     );

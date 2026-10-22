@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { formatNumber } from '@/lib/format';
+import { hasSessionHint } from '@/lib/session-hint';
 import type { ArticleVoteCounts } from '@/lib/types';
 import { communityErrorMessage, communityFetch, loginHref } from './api';
 import styles from './community.module.css';
@@ -31,6 +32,11 @@ export function VoteBar({
 
   useEffect(() => {
     if (!enabled) {
+      setReady(true);
+      return;
+    }
+    if (!hasSessionHint()) {
+      setAuthenticated(false);
       setReady(true);
       return;
     }

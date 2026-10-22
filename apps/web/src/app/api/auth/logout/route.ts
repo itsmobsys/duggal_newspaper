@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { COOKIE_AUTH_HINT } from '@/lib/constants';
 import { apiFetch } from '@/lib/api';
 import { clearUserSession, getUserSessionToken } from '@/lib/user';
 
@@ -23,5 +24,7 @@ export async function POST(): Promise<NextResponse> {
     }
   }
   await clearUserSession();
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true });
+  response.cookies.set(COOKIE_AUTH_HINT, '', { path: '/', maxAge: 0 });
+  return response;
 }

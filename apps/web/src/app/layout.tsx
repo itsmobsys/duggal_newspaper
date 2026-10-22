@@ -58,6 +58,21 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Preload the display and body faces the first screen needs. */}
+        <link
+          rel="preload"
+          href="/fonts/sourceserif-normal-400.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/playfair-normal-700-900.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         {/* Applies a stored theme before paint, so the palette never flashes. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>

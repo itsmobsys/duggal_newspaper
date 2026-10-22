@@ -12,6 +12,15 @@ import { getPublicSettings, siteUrl } from '@/lib/settings';
 import styles from './page.module.css';
 
 export const revalidate = 60;
+export const dynamicParams = true;
+
+/**
+ * An empty generator is what tells Next this dynamic segment is cacheable.
+ * Without it the route is rendered per request and `revalidate` is ignored.
+ */
+export function generateStaticParams(): Array<{ date: string }> {
+  return [];
+}
 
 interface EditionPageProps {
   params: Promise<{ date: string }>;

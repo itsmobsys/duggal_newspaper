@@ -9,6 +9,11 @@ export const SITE_DESCRIPTION_FALLBACK =
 export const COOKIE_ADMIN_SESSION = 'dbd_admin';
 /** Reader session cookie (httpOnly, set by the BFF after Discord OAuth). */
 export const COOKIE_USER_SESSION = 'dbd_user';
+/**
+ * Readable (not httpOnly) hint that the reader may hold a session. It only
+ * decides whether the client asks /api/auth/me; the API stays authoritative.
+ */
+export const COOKIE_AUTH_HINT = 'dbd_auth';
 /** Short-lived OAuth state + PKCE verifier cookie. */
 export const COOKIE_OAUTH_STATE = 'dbd_oauth';
 /** CSRF double-submit cookie (readable by the admin UI). */

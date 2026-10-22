@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { formatDateShort, relativeTime } from '@/lib/format';
+import { hasSessionHint } from '@/lib/session-hint';
 import type {
   CommunityReview,
   CommunityViewer,
@@ -76,6 +77,11 @@ export function ReviewSection({
 
   useEffect(() => {
     if (!enabled) {
+      setReady(true);
+      return;
+    }
+    if (!hasSessionHint()) {
+      setAuthenticated(false);
       setReady(true);
       return;
     }

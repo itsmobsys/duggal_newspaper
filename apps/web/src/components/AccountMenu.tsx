@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { hasSessionHint } from '@/lib/session-hint';
 import type { SessionUser } from '@/lib/user';
 import styles from './AccountMenu.module.css';
 
@@ -14,6 +15,10 @@ export function AccountMenu(): React.JSX.Element | null {
 
   useEffect(() => {
     let cancelled = false;
+    if (!hasSessionHint()) {
+      setUser(null);
+      return;
+    }
     fetch('/api/auth/me', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
       .then((data: { user: SessionUser | null } | null) => {

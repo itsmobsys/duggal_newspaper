@@ -251,7 +251,7 @@ export async function listArticles(filters: ArticleFilters = {}): Promise<Page<A
       [...where.args, limit, offset],
     ),
     safeQueryOne<{ total: number }>(
-      `SELECT COUNT(*) AS total ${ARTICLE_JOIN} WHERE ${where.sql}`,
+      `SELECT COUNT(*) AS total FROM articles a WHERE ${where.sql}`,
       where.args,
     ),
   ]);
@@ -434,18 +434,17 @@ export async function getRelatedArticles(
   article: Pick<ArticleListItem, 'id' | 'categorySlug'>,
   limit = 3,
 ): Promise<ArticleListItem[]> {
-  const sameCategory = await listArticles({
-    category: article.categorySlug,
-    excludeId: article.id,
-    limit,
-  });
-  if (sameCategory.items.length >= limit) return sameCategory.items;
-  const fallback = await listArticles({ excludeId: article.id, limit });
-  const seen = new Set(sameCategory.items.map((item) => item.id));
-  return [...sameCategory.items, ...fallback.items.filter((item) => !seen.has(item.id))].slice(
-    0,
-    limit,
+  // One query instead of up to two listArticles calls (each with its own COUNT
+  // and image round trip). Same category first, newest first, then the rest.
+  const capped = Math.min(Math.max(limit, 1), 12);
+  const rows = await safeQuery<ArticleRow>(
+    `SELECT ${ARTICLE_COLUMNS} ${ARTICLE_JOIN}
+     WHERE a.status = 'published' AND a.id <> ?
+     ORDER BY CASE WHEN a.category_slug = ? THEN 0 ELSE 1 END, a.published_at DESC
+     LIMIT ?`,
+    [article.id, article.categorySlug, capped],
   );
+  return attachImages(rows);
 }
 
 function toEdition(row: EditionRow): EditionView {

@@ -6,11 +6,10 @@ import { storageStatus } from '../services/storage.js';
 import { getStorageDegraded } from '../services/storage-usage.js';
 
 export async function registerHealthRoutes(app: FastifyInstance, db: Db): Promise<void> {
-  app.get('/healthz', async () => ({
-    ok: true,
-    service: 'duggal-badmosh-api',
-    time: nowIso(),
-  }));
+  app.get('/healthz', async (_request, reply) => {
+    reply.header('cache-control', 'public, max-age=5');
+    return { ok: true, service: 'duggal-badmosh-api', time: nowIso() };
+  });
 
   app.get('/readyz', async (_request, reply) => {
     const checks: Record<string, { ok: boolean; detail?: string }> = {};
@@ -49,6 +48,7 @@ export async function registerHealthRoutes(app: FastifyInstance, db: Db): Promis
 
     // AI/storage being absent is a degraded state, not a dead server: text
     // submissions and the admin console must still work.
+    reply.header('cache-control', ok ? 'public, max-age=10' : 'no-store');
     reply.code(ok ? 200 : 503);
     return { ok, checks, time: nowIso() };
   });

@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { apiFetch, clientIpFrom } from '@/lib/api';
 import {
+  COOKIE_AUTH_HINT,
   COOKIE_OAUTH_STATE,
   COOKIE_USER_SESSION,
   USER_SESSION_MAX_AGE_SECONDS,
@@ -78,6 +79,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   const response = NextResponse.redirect(new URL(handshake.next, origin), 303);
   response.cookies.set(COOKIE_USER_SESSION, minted.token, {
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge,
+  });
+  response.cookies.set(COOKIE_AUTH_HINT, '1', {
+    httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',

@@ -23,7 +23,12 @@ export async function registerMediaRoutes(app: FastifyInstance, _db: Db): Promis
     }
 
     const key = (request.params['*'] ?? '').replace(/^\/+/, '');
-    if (!key) throw notFound('Media not found.');
+    // Only the derived photo renditions are public. Untouched originals and any
+    // other object in the store stay behind the admin auth check, so this proxy
+    // cannot be used to enumerate or fetch them.
+    if (!key.startsWith('uploads/photos/') || key.includes('..')) {
+      throw notFound('Media not found.');
+    }
 
     const storage = getStorage();
     let buffer: Buffer;
