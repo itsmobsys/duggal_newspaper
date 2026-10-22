@@ -24,7 +24,7 @@ export function middleware(request: NextRequest): NextResponse {
   if (pathname === '/archive') {
     const legacyPage = searchParams.get('page');
     const rawMonth = searchParams.get('month');
-    const month = rawMonth && /^\\d{4}-(0[1-9]|1[0-2])$/.test(rawMonth) ? rawMonth : null;
+    const month = rawMonth && /^\d{4}-(0[1-9]|1[0-2])$/.test(rawMonth) ? rawMonth : null;
     const parsedPage = legacyPage ? Number.parseInt(legacyPage, 10) : 1;
     if (month || (Number.isInteger(parsedPage) && parsedPage > 1)) {
       const url = request.nextUrl.clone();
