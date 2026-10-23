@@ -40,6 +40,7 @@ const SubmissionBodySchema = z.object({
     errorMap: () => ({ message: 'You must confirm the story is yours to share.' }),
   }),
   contactEmail: z.union([z.string().trim().email().max(200), z.literal('')]).optional(),
+  editorInstructions: z.string().max(600).optional(),
 });
 
 const UploadInitSchema = z.object({
@@ -326,6 +327,14 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
     const uploads = await claimUploads(db, uploadIds);
     const now = nowIso();
     const submissionId = newId('sub');
+    // Editorial instructions steer the rewrite only. They are stored beside the
+    // story, never published, and capped so the prompt cannot be hijacked with
+    // an essay.
+    const editorInstructions =
+      stripHtmlLike(body.editorInstructions ?? '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 600) || null;
     const publicToken = randomToken(24);
     const identityMode: 'discord' | 'anonymous' = anonymous ? 'anonymous' : 'discord';
     // Store the real Discord identity on the submission; `anonymous` masks it on
@@ -343,8 +352,9 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
       await tx.run(
         `INSERT INTO submissions (id, public_token, headline, story, author_name, discord_handle,
            contact_email, category_slug, source_url, anonymous, identity_mode, status, spam_score,
-           misleading_risk, content_hash, ip_hash, user_agent, member_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'received', ?, ?, ?, ?, ?, ?, ?, ?)`,
+           misleading_risk, content_hash, ip_hash, user_agent, member_id, editor_instructions,
+           created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'received', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           submissionId,
           publicToken,
@@ -363,6 +373,7 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
           ipHash,
           (request.headers['user-agent'] ?? '').slice(0, 300),
           memberId,
+          editorInstructions,
           now,
           now,
         ],

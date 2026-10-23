@@ -35,6 +35,8 @@ export interface SubmissionRow {
   editor_override_by: string | null;
   editor_override_note: string | null;
   editor_override_reasons: string | null;
+  /** Style direction written by the filer. Never published. */
+  editor_instructions: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -445,3 +445,88 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* --------------------------------------------------------------------------
+   AI editor instructions — free text plus four ready-made briefs. A preset
+   only fills the box; the filer can edit it or ignore all of them.
+   -------------------------------------------------------------------------- */
+.instructions {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  min-height: 5.5rem;
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  padding: 9px 11px;
+  text-align: left;
+  font-family: var(--font-sans);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition:
+    border-color var(--dur) var(--ease),
+    background var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.preset:hover {
+  border-color: var(--ink-soft);
+  transform: translateY(-1px);
+}
+
+.preset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.presetActive,
+.presetActive:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.presetLabel {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.presetActive .presetLabel {
+  color: var(--accent);
+}
+
+.presetHint {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--ink-mute);
+}
+
+@media (max-width: 520px) {
+  .presets {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .preset {
+    padding: 8px 9px;
+  }
+
+  .presetHint {
+    display: none;
+  }
+}

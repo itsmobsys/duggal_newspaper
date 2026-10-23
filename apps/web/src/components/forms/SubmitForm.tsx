@@ -63,6 +63,51 @@ const FIELD_ORDER: FieldName[] = [
   'consent',
 ];
 
+/**
+ * Ready-made briefs for the rewrite. A preset only pre-fills the instruction
+ * box: the filer can edit the words or ignore presets entirely. The text is an
+ * instruction to the desk, never published, and never a source of facts.
+ */
+const EDITOR_INSTRUCTION_MAX = 600;
+
+type PresetId = 'short' | 'long' | 'serious' | 'joke';
+
+const PRESETS: Array<{ id: PresetId; label: string; hint: string; prompt: string }> = [
+  {
+    id: 'short',
+    label: 'Short News',
+    hint: 'Tight and punchy',
+    prompt:
+      'Keep this short and punchy. Rewrite it as a tight news story with the key facts up front, no padding, no repeated jokes and no extra scenes. Preserve every important detail and keep my original meaning.',
+  },
+  {
+    id: 'long',
+    label: 'Long News',
+    hint: 'Fuller structure',
+    prompt:
+      'Write this out at fuller length with a proper structure: what happened, who is involved, the context and what comes next. Use only the information in the submission — never invent facts, quotes or numbers to fill space, and keep my original meaning.',
+  },
+  {
+    id: 'serious',
+    label: 'Serious Mode',
+    hint: 'Real newspaper tone',
+    prompt:
+      'Use a serious, credible newspaper tone. Remove the jokes, exaggeration and slang, keep the facts and my meaning exactly as they are, and write it like a real report.',
+  },
+  {
+    id: 'joke',
+    label: 'Joke Mode',
+    hint: 'Unhinged, but factual',
+    prompt:
+      'Rewrite this as a funny, unhinged Duggal Badmosh Daily piece: sharp jokes, absurd escalation and savage punchlines, while keeping the core facts accurate. Do not invent claims, quotes or events.',
+  },
+];
+
+function presetFor(value: string): PresetId | null {
+  const match = PRESETS.find((preset) => preset.prompt === value);
+  return match ? match.id : null;
+}
+
 const FIELD_LABELS: Record<FieldName, string> = {
   headline: 'Headline',
   story: 'Story',
@@ -83,6 +128,7 @@ const API_FIELD_MAP: Record<string, FieldName | null> = {
   formStartedAt: null,
   anonymous: null,
   contactEmail: null,
+  editorInstructions: null,
 };
 
 function formatBytes(bytes: number): string {
@@ -139,6 +185,8 @@ export function SubmitForm({
 
   const [headline, setHeadline] = useState('');
   const [story, setStory] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [preset, setPreset] = useState<PresetId | null>(null);
   const [categorySlug, setCategorySlug] = useState(defaultCategory);
   const [sourceUrl, setSourceUrl] = useState('');
   const [anonymous, setAnonymous] = useState(false);
@@ -436,6 +484,7 @@ export function SubmitForm({
         body: JSON.stringify({
           headline: headline.trim(),
           story: story.trim(),
+          editorInstructions: instructions.trim() || undefined,
           categorySlug,
           sourceUrl: sourceUrl.trim() || undefined,
           anonymous: settings.anonymousAllowed ? anonymous : false,
@@ -657,6 +706,52 @@ export function SubmitForm({
             {errors.story}
           </p>
         ) : null}
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="editorInstructions">
+          AI editor instructions <span className={styles.optional}>(optional)</span>
+        </label>
+        <p className="field-help" id="editor-help">
+          Tell the desk how to rewrite it — shorter, longer, serious, funny. This text only steers
+          the edit; it is never published.
+        </p>
+        <textarea
+          id="editorInstructions"
+          name="editorInstructions"
+          className={`textarea ${styles.instructions}`}
+          value={instructions}
+          onChange={(event) => {
+            const value = event.target.value.slice(0, EDITOR_INSTRUCTION_MAX);
+            setInstructions(value);
+            setPreset(presetFor(value));
+          }}
+          rows={3}
+          maxLength={EDITOR_INSTRUCTION_MAX}
+          placeholder="e.g. Keep it short and serious, and keep my original meaning."
+          aria-describedby="editor-help editor-count"
+        />
+        <div className={styles.presets} role="group" aria-label="Preset editor instructions">
+          {PRESETS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className={`${styles.preset} ${preset === option.id ? styles.presetActive : ''}`}
+              aria-pressed={preset === option.id}
+              onClick={() => {
+                setInstructions(option.prompt);
+                setPreset(option.id);
+              }}
+            >
+              <span className={styles.presetName}>{option.label}</span>
+              <span className={styles.presetHint}>{option.hint}</span>
+            </button>
+          ))}
+        </div>
+        <p className="field-help" id="editor-count">
+          {instructions.length} / {EDITOR_INSTRUCTION_MAX}. Pick a preset, then edit it however you
+          like.
+        </p>
       </div>
 
       <div className="field">

@@ -98,6 +98,7 @@ export async function processSubmission(
     maxParagraphs: Math.max(settings['ai.body_paragraphs_min'], settings['ai.body_paragraphs_max']),
     anonymous,
     owner: isOwnerIdentity(submission.author_name, submission.discord_handle),
+    editorInstructions: submission.editor_instructions,
     editorOverride,
   });
   const user = buildSubmissionUserPrompt({
@@ -115,6 +116,7 @@ export async function processSubmission(
     },
     categories: promptCategories,
     serverName: settings['site.name'],
+    editorInstructions: submission.editor_instructions,
   });
 
   let ai;
