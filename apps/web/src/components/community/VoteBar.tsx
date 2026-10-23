@@ -62,25 +62,35 @@ export function VoteBar({
 
   const canVote = ready && authenticated === true && !busy;
 
-  async function cast(value: -1 | 1): Promise<void> {
+  function cast(value: -1 | 1): void {
     if (!canVote) return;
-    const next = myVote === value ? 0 : value;
+    const next: -1 | 0 | 1 = myVote === value ? 0 : value;
+    // Optimistic paint: the click reacts instantly, the server response then
+    // reconciles the real totals so nobody can fake counts from the browser.
+    setLikes(likes + (next === 1 ? 1 : myVote === 1 ? -1 : 0));
+    setDislikes(dislikes + (next === -1 ? 1 : myVote === -1 ? -1 : 0));
+    setMyVote(next === 0 ? null : next);
     setBusy(true);
     setError('');
-    try {
-      const data = await communityFetch<ArticleVoteCounts>('/votes', {
-        method: 'POST',
-        body: { articleId, value: next },
+    void communityFetch<ArticleVoteCounts>('/votes', {
+      method: 'POST',
+      body: { articleId, value: next },
+    })
+      .then((data) => {
+        setLikes(data.likes);
+        setDislikes(data.dislikes);
+        setMyVote(data.myVote ? data.myVote : null);
+        setAuthenticated(data.authenticated);
+      })
+      .catch((caught: unknown) => {
+        setError(communityErrorMessage(caught));
+        setLikes(likes);
+        setDislikes(dislikes);
+        setMyVote(myVote);
+      })
+      .finally(() => {
+        setBusy(false);
       });
-      setLikes(data.likes);
-      setDislikes(data.dislikes);
-      setMyVote(data.myVote);
-      setAuthenticated(data.authenticated);
-    } catch (caught) {
-      setError(communityErrorMessage(caught));
-    } finally {
-      setBusy(false);
-    }
   }
 
   const note =

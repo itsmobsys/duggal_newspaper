@@ -62,11 +62,31 @@ async function main(): Promise<void> {
     logger.info('in-process worker disabled; expecting external cron ticks');
   }
 
+  // Keep-alive self-ping: Render's free instance sleeps after ~15 idle
+  // minutes, and the first reader click then pays a cold start. Pinging our
+  // own /healthz keeps the instance hot so public clicks stay snappy.
+  let keepWarmTimer: NodeJS.Timeout | null = null;
+  if (config.keepWarmMs > 0) {
+    const warmUp = setTimeout(() => {
+      void fetch(`${config.selfUrl}/healthz`, { method: 'HEAD' }).catch(() => {});
+    }, 5_000);
+    warmUp.unref();
+    keepWarmTimer = setInterval(() => {
+      void fetch(`${config.selfUrl}/healthz`, { method: 'HEAD' }).catch(() => {});
+    }, config.keepWarmMs);
+    keepWarmTimer.unref();
+    logger.info(
+      { keepWarmMs: config.keepWarmMs, selfUrl: config.selfUrl },
+      'keep-warm self-ping started',
+    );
+  }
+
   const shutdown = async (signal: string): Promise<void> => {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, 'shutting down');
     if (timer) clearInterval(timer);
+    if (keepWarmTimer) clearInterval(keepWarmTimer);
     try {
       await app.close();
     } catch (error) {

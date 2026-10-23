@@ -96,6 +96,13 @@ const rawSchema = z.object({
   WORKER_LEASE_MS: z.coerce.number().int().min(10_000).max(900_000).default(300_000),
   WORKER_MAX_JOBS_PER_TICK: z.coerce.number().int().min(1).max(20).default(4),
   WORKER_BUDGET_MS: z.coerce.number().int().min(5_000).max(240_000).default(90_000),
+  /**
+   * Seconds between self-pings that stop Render Free from sleeping
+   * (~15 idle minutes). 0 disables the self-ping entirely.
+   */
+  KEEP_WARM_MS: z.coerce.number().int().min(0).max(900_000).default(240_000),
+  /** Absolute URL used for the self-ping; defaults to the Render service URL. */
+  SELF_URL: z.string().url().optional(),
   TRUST_PROXY: z
     .enum(['true', 'false'])
     .default('true')
@@ -107,6 +114,13 @@ const rawSchema = z.object({
 
 const raw = rawSchema.parse(process.env);
 const isProduction = raw.NODE_ENV === 'production';
+
+// Render's free instance sleeps after roughly 15 idle minutes; the cold start
+// makes the first public click feel broken. Whenever we know a public URL to
+// hit, ping our own /healthz every KEEP_WARM_MS (default 4 min); 0 disables.
+const renderUrl = process.env.RENDER_EXTERNAL_URL ?? process.env.RENDER_EXTERNAL_HOSTNAME ?? '';
+const selfUrl = (raw.SELF_URL ?? renderUrl).replace(/\/$/, '');
+const keepWarmMs = selfUrl ? raw.KEEP_WARM_MS : 0;
 
 function requiredInProduction(
   value: string | undefined,
@@ -216,6 +230,10 @@ export interface AppConfig {
     maxJobsPerTick: number;
     budgetMs: number;
   };
+  /** Interval in ms for the keep-warm self-ping; 0 disabled. */
+  keepWarmMs: number;
+  /** Absolute URL the self-ping calls; falls back to the Render public URL. */
+  selfUrl: string;
   trustProxy: boolean;
   revalidate: { url?: string; secret?: string };
 }
@@ -279,6 +297,8 @@ export const config: AppConfig = {
   },
   trustProxy: raw.TRUST_PROXY,
   revalidate: { url: raw.REVALIDATE_URL, secret: raw.REVALIDATE_SECRET },
+  selfUrl,
+  keepWarmMs,
 };
 
 export const AI_MODEL_ID = config.ai.model;
