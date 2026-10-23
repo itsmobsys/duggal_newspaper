@@ -16,6 +16,7 @@ import { loadSettings, type Settings } from '../settings.js';
 import { buildWeeklyAwards } from './awards.js';
 import { buildEdition } from './editions.js';
 import { AI_PAUSED_REASON, processSubmission } from './process-submission.js';
+import { revalidateWeb } from './publishing.js';
 import {
   claimJob,
   completeJob,
@@ -97,6 +98,10 @@ async function runJob(db: Db, job: JobRecord, log: Logger, settings: Settings): 
       await cleanupUploads(db, log);
       return;
     }
+    case 'reset_placements': {
+      await resetPlacements(db, log);
+      return;
+    }
     case 'recover_failed': {
       await recoverFailedSubmissions(db, log);
       return;
@@ -104,6 +109,24 @@ async function runJob(db: Db, job: JobRecord, log: Logger, settings: Settings): 
     default:
       throw new Error(`Unknown job type: ${job.type}`);
   }
+}
+
+async function resetPlacements(db: Db, log: Logger): Promise<void> {
+  // A pinned lead is a decision about today, not a permanent rank. Each local
+  // day starts clean so the newest stories can compete: lead/top placements,
+  // breaking and featured flags all return to standard. Editors can re-pin at
+  // any time; this only clears flags that survived the night.
+  const result = await db.run(
+    `UPDATE articles
+        SET placement = 'standard', breaking = 0, featured = 0
+      WHERE status = 'published'
+        AND (placement <> 'standard' OR breaking <> 0 OR featured <> 0)`,
+    [],
+  );
+  const changed = Number(result.rowsAffected ?? 0);
+  if (changed === 0) return;
+  log.info({ changed }, 'daily placement reset: lead, top, breaking and featured cleared');
+  void revalidateWeb(['/', '/latest']);
 }
 
 async function cleanupUploads(db: Db, log: Logger): Promise<void> {
@@ -226,6 +249,16 @@ export async function runScheduler(db: Db): Promise<void> {
     });
   }
   void cleanupRateLimits(db).catch(() => {});
+
+  // Yesterday's pins are not today's news. Keyed by local date, so it runs on
+  // the first tick after midnight (00:00 Asia/Kolkata by default) and at most
+  // once per day.
+  await enqueueJob(db, {
+    type: 'reset_placements',
+    idempotencyKey: `placements:${date}`,
+    once: true,
+    priority: -4,
+  });
 
   if (!settings['autonomy.enabled']) return;
 
