@@ -91,8 +91,9 @@ describe('reset_placements', () => {
   });
 
   it('runs at most once per local day', async () => {
-    await runScheduler(db);
-    await runScheduler(db);
+    // 18:31 UTC is 00:01 the next day in Asia/Kolkata.
+    await runScheduler(db, new Date('2026-10-20T18:31:00.000Z'));
+    await runScheduler(db, new Date('2026-10-20T18:36:00.000Z'));
 
     // The first tick of the day enqueued one job; the second was a no-op.
     // The manual key from the previous test is ignored on purpose.
@@ -101,6 +102,18 @@ describe('reset_placements', () => {
        WHERE type = 'reset_placements' AND idempotency_key <> 'placements:test'`,
     );
     expect(scheduled.length).toBe(1);
-    expect(scheduled[0]?.idempotency_key).toMatch(/^placements:\d{4}-\d{2}-\d{2}$/);
+    expect(scheduled[0]?.idempotency_key).toBe('placements:2026-10-21');
+  });
+
+  it('stays out of the way during the rest of the day', async () => {
+    // 06:30 UTC is noon in Asia/Kolkata: a deploy must not clear today's pins.
+    await runScheduler(db, new Date('2026-10-21T06:30:00.000Z'));
+
+    const scheduled = await db.all<{ idempotency_key: string }>(
+      `SELECT idempotency_key FROM jobs
+       WHERE type = 'reset_placements' AND idempotency_key <> 'placements:test'
+       AND idempotency_key <> 'placements:2026-10-21'`,
+    );
+    expect(scheduled).toEqual([]);
   });
 });

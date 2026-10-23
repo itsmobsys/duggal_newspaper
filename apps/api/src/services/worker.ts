@@ -231,9 +231,8 @@ async function ensureEdition(
   }
 }
 
-export async function runScheduler(db: Db): Promise<void> {
+export async function runScheduler(db: Db, now: Date = new Date()): Promise<void> {
   const settings = await loadSettings(db);
-  const now = new Date();
   const date = editionDateFor(now, settings['site.timezone']);
   const hour = localHourFor(now, settings['site.timezone']);
   const weekday = localWeekdayFor(now, settings['site.timezone']);
@@ -252,13 +251,16 @@ export async function runScheduler(db: Db): Promise<void> {
 
   // Yesterday's pins are not today's news. Keyed by local date, so it runs on
   // the first tick after midnight (00:00 Asia/Kolkata by default) and at most
-  // once per day.
-  await enqueueJob(db, {
-    type: 'reset_placements',
-    idempotencyKey: `placements:${date}`,
-    once: true,
-    priority: -4,
-  });
+  // once per day. The hour guard keeps a mid-day deploy from clearing the
+  // editor's pins.
+  if (hour === 0) {
+    await enqueueJob(db, {
+      type: 'reset_placements',
+      idempotencyKey: `placements:${date}`,
+      once: true,
+      priority: -4,
+    });
+  }
 
   if (!settings['autonomy.enabled']) return;
 
