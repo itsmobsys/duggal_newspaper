@@ -133,7 +133,7 @@ export async function buildEdition(
         truncate(edition.mood, 40),
         lead.id,
         stories.length,
-        'nvidia/nemotron-3.5-super-vl-120b-a12b',
+        'minimaxai/minimax-m3.1-flash',
         now,
         now,
       ],

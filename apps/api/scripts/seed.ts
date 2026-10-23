@@ -263,7 +263,7 @@ async function seedDemo(db: Db): Promise<void> {
          editor_note, status, source_url, ai_model, ai_generated, reading_minutes, edition_date, views,
          published_at, created_at, updated_at)
        VALUES (?, ?, NULL, ?, ?, ?, NULL, ?, ?, NULL, ?, ?, ?, 0, ?, ?, ?, 'published', NULL,
-         'nvidia/nemotron-3.5-super-vl-120b-a12b', 1, ?, ?, 0, ?, ?, ?)`,
+         'minimaxai/minimax-m3.1-flash', 1, ?, ?, 0, ?, ?, ?)`,
       [
         newId('art'),
         story.slug,

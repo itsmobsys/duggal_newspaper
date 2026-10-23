@@ -45,13 +45,13 @@ const rawSchema = z.object({
 
   NVIDIA_API_KEY: z.string().optional(),
   NVIDIA_BASE_URL: z.string().default('https://integrate.api.nvidia.com/v1'),
-  NVIDIA_MODEL: z.string().default('nvidia/nemotron-3.5-super-vl-120b-a12b'),
+  NVIDIA_MODEL: z.string().default('minimaxai/minimax-m3.1-flash'),
   AI_MAX_RPM: z.coerce.number().int().min(1).max(600).default(28),
   AI_TIMEOUT_MS: z.coerce.number().int().min(5_000).max(600_000).default(180_000),
   AI_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(8).default(5),
   AI_TEMPERATURE: z.coerce.number().min(0).max(1.5).default(0.9),
   AI_MAX_TOKENS: z.coerce.number().int().min(256).max(8192).default(2600),
-  // Nemotron is a reasoning model: it spends completion tokens thinking before
+  // The model reasons before answering: it spends completion tokens thinking before
   // it writes the answer. This headroom is added to AI_MAX_TOKENS so the
   // answer budget is not eaten by reasoning tokens (which yields empty content).
   AI_REASONING_HEADROOM_TOKENS: z.coerce.number().int().min(0).max(16_000).default(6000),
@@ -302,7 +302,7 @@ export const config: AppConfig = {
 };
 
 export const AI_MODEL_ID = config.ai.model;
-export const REQUIRED_MODEL_ID = 'nvidia/nemotron-3.5-super-vl-120b-a12b';
+export const REQUIRED_MODEL_ID = 'minimaxai/minimax-m3.1-flash';
 
 export function assertAiConfigured(): void {
   if (!config.ai.apiKey) {

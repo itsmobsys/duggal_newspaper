@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------------
-# Duggal Badmosh Daily - newsroom API (Fastify + Turso + Vercel Blob + Nemotron)
+# Duggal Badmosh Daily - newsroom API (Fastify + Turso + Vercel Blob + MiniMax)
 #
 # Built for Render's free tier: one small Node process that serves the API,
 # runs the queue worker, and reads/writes Turso. The website stays on Vercel;

@@ -7,7 +7,7 @@ import styles from './page.module.css';
 export const revalidate = 3600;
 
 /** Fixed in configuration and never silently swapped. Mirrors README / apps/api config. */
-const AI_MODEL_ID = 'nvidia/nemotron-3.5-super-vl-120b-a12b';
+const AI_MODEL_ID = 'minimaxai/minimax-m3.1-flash';
 
 const SECTIONS: Array<{ id: string; label: string }> = [
   { id: 'what-this-is', label: 'What this paper is' },
@@ -88,9 +88,9 @@ export default async function StandardsPage(): Promise<React.JSX.Element> {
         <section aria-labelledby="ai-disclosure">
           <h2 id="ai-disclosure">AI disclosure</h2>
           <p>
-            The desk runs on NVIDIA Nemotron, fixed in configuration at <code>{AI_MODEL_ID}</code>.
-            The model is never silently swapped for another one; the identifier lives in the
-            repository and in the running configuration.
+            The desk runs on MiniMax M3.1 Flash, fixed in configuration at{' '}
+            <code>{AI_MODEL_ID}</code>. The model is never silently swapped for another one; the
+            identifier lives in the repository and in the running configuration.
           </p>
           <p>
             Every story drafted by the desk is stored with a record of the model that drafted it,

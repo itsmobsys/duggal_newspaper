@@ -68,13 +68,13 @@ services:
       - key: TURSO_AUTH_TOKEN
         sync: false
 
-      # --- NVIDIA Nemotron (server-only secret) ------------------------------
+      # --- AI model (server-only secret) -------------------------------------
       - key: NVIDIA_API_KEY
         sync: false
       - key: NVIDIA_BASE_URL
         value: https://integrate.api.nvidia.com/v1
       - key: NVIDIA_MODEL
-        value: nvidia/nemotron-3.5-super-vl-120b-a12b
+        value: minimaxai/minimax-m3.1-flash
       - key: AI_MAX_RPM
         value: "28"
       - key: AI_TIMEOUT_MS

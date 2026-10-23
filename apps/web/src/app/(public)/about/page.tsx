@@ -11,7 +11,7 @@ export const revalidate = 3600;
 
 const REPO_URL = 'https://github.com/itsmobsys/duggal_newspaper';
 /** Fixed in configuration and never silently swapped. Mirrors README / apps/api config. */
-const AI_MODEL_ID = 'nvidia/nemotron-3.5-super-vl-120b-a12b';
+const AI_MODEL_ID = 'minimaxai/minimax-m3.1-flash';
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicSettings();
@@ -153,8 +153,8 @@ export default async function AboutPage(): Promise<React.JSX.Element> {
             settings. Text and metadata only; photos live elsewhere.
           </li>
           <li>
-            <strong>NVIDIA Nemotron</strong> — <code>{AI_MODEL_ID}</code>, used for drafting,
-            captions and risk-reading through the NVIDIA API.
+            <strong>MiniMax M3.1 Flash</strong> — <code>{AI_MODEL_ID}</code>, used for drafting,
+            rewriting and triage through the NVIDIA API.
           </li>
           <li>
             <strong>Cloudflare R2</strong> — object storage for the photos readers submit.

@@ -18,7 +18,7 @@ Built for a Discord community. Runs on free tiers. MIT licensed.
 | | |
 | --- | --- |
 | **Website submissions** | **Login with Discord** (OAuth2 `identify` scope only — no email), then headline, story, up to 4 photos, category, source link and anonymity. The API rejects anonymous requests too. No Discord bot. |
-| **AI newsroom** | Supplied by NVIDIA Nemotron (`nvidia/nemotron-3.5-super-vl-120b-a12b`). Rewrites copy, writes headlines, deks and tags, picks a category, and spots spam. |
+| **AI newsroom** | Supplied by MiniMax M3.1 Flash (`minimaxai/minimax-m3.1-flash`). Rewrites copy, writes headlines, deks and tags, picks a category, and spots spam. |
 | **Autonomy** | Routine stories publish themselves. Only concrete abuse and illegal content is held for a human: credible threats, weapon/explosive/drug/self-harm instructions, private personal data, minors or non-consensual sexual content, protected-group slurs, and active fraud or phishing. Tone, profanity, gossip, sarcasm, roasts, opinions and unverified allegations are **not** holds. Nothing is silently dropped. |
 | **Daily editions** | An archive snapshot, not a publish queue: the AI assembles the edition dated for the next day at **23:00 IST**, live at **00:00 IST**. Stories do **not** wait for it — an approved story is on the live site within seconds. A deterministic fallback layout is used if the AI is unavailable. |
 | **Reading experience** | Dynamic front page, breaking ticker, categories, article pages, photo desk, search, tags, archives, editions, awards, corrections, RSS, sitemap and Open Graph images. New stories appear without a redeploy. |
@@ -35,7 +35,7 @@ Reader
   ▼
 Vercel (Next.js)  ──────────────►  Render (Fastify API)  ──────►  Turso (SQLite)
   │   signed BFF calls                    │  queue + worker           ▲
-  │                                       ├─ NVIDIA Nemotron          │
+  │                                       ├─ MiniMax M3.1 Flash       │
   │                                       └─ sharp → Vercel Blob      │
   │                                                                  │
   └──────────── reads Turso directly (ISR) ──────────────────────────┘
@@ -229,12 +229,12 @@ Open <http://localhost:3000> and <http://localhost:3000/admin>.
 | `TURSO_AUTH_TOKEN` | yes | Turso token |
 | `NVIDIA_API_KEY` | yes | **Server-only.** Never expose or commit |
 | `NVIDIA_BASE_URL` | no | Defaults to `https://integrate.api.nvidia.com/v1` |
-| `NVIDIA_MODEL` | no | Defaults to `nvidia/nemotron-3.5-super-vl-120b-a12b` |
+| `NVIDIA_MODEL` | no | Defaults to `minimaxai/minimax-m3.1-flash` |
 | `AI_MAX_RPM` | no | Client-side rate cap (default 28) |
 | `AI_TIMEOUT_MS` | no | Default 180000 |
 | `AI_MAX_ATTEMPTS` | no | Default 5 |
 | `AI_TEMPERATURE` / `AI_MAX_TOKENS` | no | Defaults 0.9 / 2600 (answer budget) |
-| `AI_REASONING_HEADROOM_TOKENS` | no | Default 6000. Added to `AI_MAX_TOKENS` because Nemotron spends completion tokens on reasoning before writing the answer. |
+| `AI_REASONING_HEADROOM_TOKENS` | no | Default 6000. Added to `AI_MAX_TOKENS` because the model spends completion tokens on reasoning before writing the answer. |
 | `AI_JSON_MODE` | no | Defaults `true`. Falls back to plain JSON parsing if the gateway rejects `response_format`. |
 | `SERVICE_SECRET` | yes | HMAC shared with Vercel (≥24 chars) |
 | `WORKER_TICK_TOKEN` | yes | Shared with GitHub Actions (≥24 chars) |
@@ -531,7 +531,7 @@ be offline. Do not present it as verification of anything else.
 The model is fixed in configuration and is never silently swapped:
 
 ```
-nvidia/nemotron-3.5-super-vl-120b-a12b
+minimaxai/minimax-m3.1-flash
 ```
 
 The prompt forbids inventing facts, quotes, people or sources. The server also

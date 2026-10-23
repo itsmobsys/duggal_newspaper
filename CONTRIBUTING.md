@@ -8,7 +8,7 @@ By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 1. **Free or it does not ship.** No paid service, no paid dependency, no paid
    API. If a feature only works on a paid plan, it does not belong here.
 2. **The model is fixed.** The desk runs
-   `nvidia/nemotron-3.5-super-vl-120b-a12b`. Do not add a silent fallback to a
+   `minimaxai/minimax-m3.1-flash`. Do not add a silent fallback to a
    different model. If a model change is genuinely needed, it is a configuration
    change plus a documented decision.
 3. **Never invent facts.** Prompts, fixtures and copy must not invent quotes,

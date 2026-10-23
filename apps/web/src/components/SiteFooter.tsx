@@ -99,7 +99,7 @@ export function SiteFooter({ settings, categories }: SiteFooterProps): React.JSX
         <span>
           © {new Date().getFullYear()} {settings.site.name}
         </span>
-        <span>Written by a robot. Funded by nobody. Powered by Nemotron.</span>
+        <span>Written by a robot. Funded by nobody. Powered by MiniMax.</span>
         <span>No facts were invented in the making of this newspaper.</span>
       </div>
     </footer>
