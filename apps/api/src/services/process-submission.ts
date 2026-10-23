@@ -11,6 +11,7 @@ import { AiResultSchema } from './ai/schema.js';
 import {
   buildSubmissionSystemPrompt,
   buildSubmissionUserPrompt,
+  isOwnerIdentity,
   type PromptCategory,
 } from './ai/prompt.js';
 import { analyzeHeuristics } from './moderation.js';
@@ -96,6 +97,7 @@ export async function processSubmission(
     minParagraphs: settings['ai.body_paragraphs_min'],
     maxParagraphs: Math.max(settings['ai.body_paragraphs_min'], settings['ai.body_paragraphs_max']),
     anonymous,
+    owner: isOwnerIdentity(submission.author_name, submission.discord_handle),
     editorOverride,
   });
   const user = buildSubmissionUserPrompt({
