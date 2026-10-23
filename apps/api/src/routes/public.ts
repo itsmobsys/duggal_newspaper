@@ -25,7 +25,7 @@ import {
 } from '../services/uploads.js';
 import { runWorkerTick } from '../services/worker.js';
 import { requireUserSession } from '../services/user-sessions.js';
-import { clientIpHash, writeAudit } from './helpers.js';
+import { assertSiteLive, clientIpHash, writeAudit } from './helpers.js';
 
 const SubmissionBodySchema = z.object({
   headline: z.string().trim().min(6).max(300),
@@ -173,6 +173,7 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
   app.post('/public/uploads/init', async (request) => {
     const body = UploadInitSchema.parse(request.body ?? {});
     await requireUserSession(db, request);
+    await assertSiteLive(db);
     const ipHash = clientIpHash(request);
     await guard(
       db,
@@ -243,6 +244,7 @@ export async function registerPublicRoutes(app: FastifyInstance, db: Db): Promis
     // Every submission is tied to a Discord login. Identity details are read
     // from the session (and therefore from Discord), never from the request body.
     const user = await requireUserSession(db, request);
+    await assertSiteLive(db);
 
     const ipHash = clientIpHash(request);
     const settings = await loadSettings(db);

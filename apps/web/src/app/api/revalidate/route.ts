@@ -67,6 +67,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const body: unknown = await request.json().catch(() => null);
+
+  // A layout-scoped purge clears every page that shares the (public) layout —
+  // used by the takedown switch, which must apply to the whole site at once.
+  const layout =
+    body !== null && typeof body === 'object' && (body as { layout?: unknown }).layout === true;
+  if (layout) {
+    revalidatePath('/', 'layout');
+    for (const tag of DATA_TAGS) revalidateTag(tag);
+    return NextResponse.json({ revalidated: ['/'], scope: 'layout', count: 1 });
+  }
+
   const rawPaths =
     body && typeof body === 'object' && Array.isArray((body as { paths?: unknown }).paths)
       ? (body as { paths: unknown[] }).paths

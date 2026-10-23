@@ -1,0 +1,139 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 720px;
+}
+
+.statusCard {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.stateLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  font-weight: 800;
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+.dotUp,
+.dotDown {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dotUp {
+  background: var(--green);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 18%, transparent);
+}
+
+.dotDown {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.bigButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-7) var(--space-5);
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: #fff;
+  text-align: center;
+  transition:
+    transform var(--dur) var(--ease),
+    filter var(--dur) var(--ease);
+}
+
+.bigButton:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.bigButton:active {
+  transform: translateY(0);
+}
+
+.bigButton:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.nuke {
+  background: var(--danger);
+  box-shadow: var(--shadow-lift);
+}
+
+.restore {
+  background: var(--green);
+  box-shadow: var(--shadow-lift);
+}
+
+.bigLabel {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bigHint {
+  font-family: var(--font-sans);
+  font-size: var(--step--1);
+  opacity: 0.9;
+}
+
+.note {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--ink-mute);
+  line-height: 1.6;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--danger);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-lift);
+}
+
+.modal h2 {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  margin: 0 0 var(--space-2);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}

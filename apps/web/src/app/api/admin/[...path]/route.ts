@@ -42,6 +42,7 @@ const ALLOWED_PREFIXES = new Set([
   'ai',
   'diagnostics',
   'storage',
+  'nuke',
 ]);
 
 const METHODS = new Set(['GET', 'POST', 'PATCH', 'PUT', 'DELETE']);

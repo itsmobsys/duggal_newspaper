@@ -281,7 +281,10 @@ export async function publishArticle(db: Db, input: PublishInput): Promise<Publi
   return { article, created: true };
 }
 
-export async function revalidateWeb(paths: string[]): Promise<void> {
+export async function revalidateWeb(
+  paths: string[],
+  options: { layout?: boolean } = {},
+): Promise<void> {
   const url = process.env.REVALIDATE_URL;
   const secret = process.env.REVALIDATE_SECRET;
   if (!url || !secret) return;
@@ -289,7 +292,7 @@ export async function revalidateWeb(paths: string[]): Promise<void> {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-revalidate-secret': secret },
-      body: JSON.stringify({ paths }),
+      body: JSON.stringify({ paths, ...(options.layout ? { layout: true } : {}) }),
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) {

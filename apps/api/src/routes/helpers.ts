@@ -4,6 +4,7 @@ import type { AdminUserRow } from '../db/types.js';
 import { hashIp } from '../lib/crypto.js';
 import { AppError } from '../lib/errors.js';
 import { nowIso } from '../lib/time.js';
+import { loadSettings } from '../settings.js';
 
 export interface AdminContext {
   user: AdminUserRow;
@@ -23,6 +24,17 @@ export function clientIp(request: FastifyRequest): string {
 
 export function clientIpHash(request: FastifyRequest): string {
   return hashIp(clientIp(request));
+}
+
+/**
+ * Public writes are refused while the desk has taken the site down. Reads
+ * (console, feeds, media) keep working so the operator can bring it back.
+ */
+export async function assertSiteLive(db: Db): Promise<void> {
+  const settings = await loadSettings(db);
+  if (settings['site.nuke']) {
+    throw new AppError(503, 'SITE_DOWN', 'The website is down right now. Try again later.');
+  }
 }
 
 export function parseJsonBody<T>(

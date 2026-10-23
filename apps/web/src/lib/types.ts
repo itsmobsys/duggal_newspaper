@@ -11,6 +11,7 @@ export interface PublicSettings {
     url: string;
     timezone: string;
     contactDiscord: string;
+    nuke: boolean;
   };
   submissions: {
     anonymousAllowed: boolean;

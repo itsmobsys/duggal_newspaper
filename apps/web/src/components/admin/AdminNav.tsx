@@ -16,6 +16,7 @@ const LINKS: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: '/admin/corrections', label: 'Corrections' },
   { href: '/admin/categories', label: 'Categories' },
   { href: '/admin/settings', label: 'Settings' },
+  { href: '/admin/nuke', label: 'Site takedown' },
   { href: '/admin/diagnostics', label: 'Diagnostics' },
   { href: '/admin/audit', label: 'Audit log' },
 ];

@@ -2525,3 +2525,344 @@ hr {
     overflow-wrap: anywhere;
   }
 }
+
+/* --------------------------------------------------------------- takedown */
+
+.nuke-screen {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: var(--space-6) var(--gutter);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+}
+
+.nuke-card {
+  max-width: 44rem;
+  padding: var(--space-6) var(--space-5);
+  border-top: 6px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+.nuke-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 0 0 var(--space-4);
+}
+
+.nuke-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 9vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-4);
+}
+
+.nuke-text {
+  font-family: var(--font-serif);
+  font-size: var(--step-2);
+  line-height: 1.45;
+  margin: 0 auto var(--space-5);
+  max-width: 34rem;
+}
+
+.nuke-link {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: var(--space-3) var(--space-5);
+  border: 2px solid var(--ink);
+  color: var(--ink);
+}
+
+.nuke-link:hover,
+.nuke-link:focus-visible {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* --------------------------------------------------------------------------
+   Takedown screen. Rendered by the (public) layout when site.nuke is on, so
+   it replaces the masthead, nav, article and footer entirely.
+   -------------------------------------------------------------------------- */
+
+.nuke-screen {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: var(--space-6) var(--gutter);
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 18px,
+      color-mix(in srgb, var(--ink) 4%, transparent) 18px 36px
+    ),
+    var(--paper);
+  text-align: center;
+}
+
+.nuke-card {
+  max-width: 42rem;
+}
+
+.nuke-kicker {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.nuke-title {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 9vw, 5rem);
+  font-weight: 900;
+  line-height: 0.94;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.nuke-text {
+  margin: 0 auto var(--space-5);
+  max-width: 34rem;
+  font-family: var(--font-serif);
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.nuke-link {
+  display: inline-block;
+  padding: var(--space-3) var(--space-5);
+  border: 2px solid var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--step--1);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.nuke-link:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* --------------------------------------------------------------- takedown ---- */
+/* The only public page while `site.nuke` is on: no masthead, no nav, no footer. */
+.nuke-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6) var(--gutter);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 18px,
+      color-mix(in srgb, var(--danger) 6%, transparent) 18px 20px
+    ),
+    var(--paper);
+}
+
+.nuke-card {
+  width: 100%;
+  max-width: 46rem;
+  border: 1px solid var(--rule);
+  border-top: 8px solid var(--danger);
+  background: var(--surface);
+  padding: clamp(var(--space-5), 5vw, var(--space-8));
+  box-shadow: var(--shadow-lift);
+  text-align: center;
+}
+
+.nuke-kicker {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.nuke-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 10vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.nuke-text {
+  margin: var(--space-4) auto var(--space-5);
+  max-width: 34ch;
+  font-size: var(--step-1);
+  color: var(--ink-soft);
+  text-wrap: balance;
+}
+
+.nuke-link {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.nuke-link:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ------------------------------------------------------------ takedown notice */
+
+.nuke-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-7) var(--gutter);
+  background: var(--paper);
+}
+
+.nuke-card {
+  width: 100%;
+  max-width: 640px;
+  padding: var(--space-7) var(--space-6);
+  border-top: 6px solid var(--danger);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  text-align: center;
+}
+
+.nuke-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 0 0 var(--space-3);
+}
+
+.nuke-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 9vw, 4.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-4);
+}
+
+.nuke-text {
+  font-family: var(--font-serif);
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0 auto var(--space-5);
+  max-width: 46ch;
+}
+
+.nuke-link {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  border: 2px solid var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--step--1);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink);
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+.nuke-link:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* ------------------------------------------------------------------ takedown */
+/* Rendered by the (public) layout instead of the whole shell when the desk
+   takes the site down. Deliberately plain: no nav, no images, no JS. */
+.nuke-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6) var(--gutter);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+}
+
+.nuke-card {
+  max-width: 46rem;
+  border-top: 6px solid var(--accent);
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-7) var(--space-5);
+}
+
+.nuke-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 0 0 var(--space-4);
+}
+
+.nuke-title {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 9vw, 5rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-4);
+}
+
+.nuke-text {
+  font-family: var(--font-serif);
+  font-size: clamp(1.125rem, 2.6vw, 1.5rem);
+  line-height: 1.5;
+  margin: 0 auto var(--space-5);
+  max-width: 34rem;
+}
+
+.nuke-link {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--step-0);
+  color: var(--paper);
+  background: var(--ink);
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+
+.nuke-link:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.nuke-link:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}

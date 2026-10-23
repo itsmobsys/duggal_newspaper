@@ -14,7 +14,7 @@ import {
   validateUserSession,
   type SessionUser,
 } from '../services/user-sessions.js';
-import { clientIpHash } from './helpers.js';
+import { assertSiteLive, clientIpHash } from './helpers.js';
 
 /**
  * Reader engagement: one like/dislike and one written review per Discord member
@@ -212,6 +212,7 @@ export async function registerCommunityRoutes(app: FastifyInstance, db: Db): Pro
   app.post('/public/votes', async (request, reply) => {
     const body = VoteSchema.parse(request.body ?? {});
     const member = await requireMember(db, request);
+    await assertSiteLive(db);
     await guard(db, `vote:${member.memberId}`, 240, 3600, 'Too many votes. Try again later.');
 
     const article = await publishedArticle(db, body.articleId);
@@ -284,6 +285,7 @@ export async function registerCommunityRoutes(app: FastifyInstance, db: Db): Pro
     const body = ReviewSchema.parse(request.body ?? {});
     assertNotBot(body);
     const member = await requireMember(db, request);
+    await assertSiteLive(db);
 
     const settings = await loadSettings(db);
     if (!settings['community.reviews_enabled']) {
@@ -376,6 +378,7 @@ export async function registerCommunityRoutes(app: FastifyInstance, db: Db): Pro
     '/public/reviews/:articleId',
     async (request, reply) => {
       const member = await requireMember(db, request);
+      await assertSiteLive(db);
       const article = await publishedArticle(db, request.params.articleId);
       const result = await db.run(
         'DELETE FROM article_reviews WHERE article_id = ? AND member_id = ?',

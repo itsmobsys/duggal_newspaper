@@ -18,6 +18,7 @@ export function defaultPublicSettings(): PublicSettings {
       url: 'http://localhost:3000',
       timezone: 'Asia/Kolkata',
       contactDiscord: '',
+      nuke: false,
     },
     submissions: {
       anonymousAllowed: true,
@@ -84,6 +85,9 @@ async function loadPublicSettings(): Promise<PublicSettings> {
         break;
       case 'site.contact_discord':
         values.site.contactDiscord = asString(value, values.site.contactDiscord);
+        break;
+      case 'site.nuke':
+        values.site.nuke = asBoolean(value, values.site.nuke);
         break;
       case 'submissions.anonymous_allowed':
         values.submissions.anonymousAllowed = asBoolean(value, values.submissions.anonymousAllowed);

@@ -981,6 +981,49 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
     return { ok: true, values };
   });
 
+  // ----------------------------------------------------------- site takedown
+  app.get('/admin/nuke', async (request) => {
+    await requireAdmin(db, request);
+    const values = await loadSettings(db);
+    return { active: values['site.nuke'] };
+  });
+
+  app.post('/admin/nuke', async (request) => {
+    const ctx = await requireAdmin(db, request);
+    const body = z
+      .object({ active: z.boolean(), password: z.string().min(1).max(200) })
+      .parse(request.body ?? {});
+    const limit = await consumeRateLimit(db, `nuke:${ctx.user.id}`, 5, 900);
+    if (!limit.allowed) {
+      throw new AppError(429, 'RATE_LIMITED', 'Too many attempts. Wait 15 minutes.', {
+        details: { retryAfterSeconds: limit.retryAfterSeconds },
+      });
+    }
+    const valid = await verifyPassword(body.password, ctx.user.password_hash);
+    if (!valid) {
+      await writeAudit(db, {
+        actor: adminId(ctx),
+        action: 'site.nuke_denied',
+        targetType: 'site',
+        targetId: 'public',
+        ipHash: clientIpHash(request),
+      });
+      throw unauthorized('That password is not right.');
+    }
+    await updateSettings(db, { 'site.nuke': body.active }, ctx.user.email);
+    invalidateSettingsCache();
+    await writeAudit(db, {
+      actor: adminId(ctx),
+      action: body.active ? 'site.nuke' : 'site.restore',
+      targetType: 'site',
+      targetId: 'public',
+      detail: { active: body.active },
+      ipHash: clientIpHash(request),
+    });
+    void revalidateWeb([], { layout: true });
+    return { ok: true, active: body.active };
+  });
+
   // -------------------------------------------------------------- categories
   app.get('/admin/categories', async (request) => {
     await requireAdmin(db, request);

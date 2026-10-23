@@ -31,6 +31,8 @@ export interface SettingsValues {
   'site.url': string;
   'site.contact_discord': string;
   'site.timezone': string;
+  /** Takedown switch: masks every public page with a notice. */
+  'site.nuke': boolean;
 
   'submissions.anonymous_allowed': boolean;
   'submissions.require_source_url': boolean;
@@ -123,6 +125,15 @@ export const SETTING_DEFS: { [K in keyof SettingsValues]: SettingDef } = {
     default: 'Asia/Kolkata',
     label: 'Newsroom timezone',
     description: 'IANA timezone used for editions and display dates.',
+    group: 'Site',
+    public: true,
+  },
+  'site.nuke': {
+    type: 'boolean',
+    default: false,
+    label: 'Take the website down',
+    description:
+      'Replaces every public page with the takedown notice. Admin, feeds, sitemap and publishing keep running.',
     group: 'Site',
     public: true,
   },
@@ -568,6 +579,7 @@ export interface PublicSettings {
     url: string;
     timezone: string;
     contactDiscord: string;
+    nuke: boolean;
   };
   submissions: {
     anonymousAllowed: boolean;
@@ -591,6 +603,7 @@ export function toPublicSettings(settings: Settings): PublicSettings {
       url: settings['site.url'],
       timezone: settings['site.timezone'],
       contactDiscord: settings['site.contact_discord'],
+      nuke: settings['site.nuke'],
     },
     submissions: {
       anonymousAllowed: settings['submissions.anonymous_allowed'],
