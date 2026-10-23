@@ -50,3 +50,8 @@ desktop.ini
 # misc
 .vercel
 render.yaml.bak
+
+# Local screenshot + scratch artifacts
+.shots/
+.tmp-*
+apps/api/.tmp-*
