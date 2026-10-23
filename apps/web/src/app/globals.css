@@ -2402,3 +2402,126 @@ hr {
     color: #000;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Phones: keep the masthead, nav and forms from colliding (<= 720px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 720px) {
+  .masthead-bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding-block: 8px;
+    text-align: center;
+  }
+
+  .masthead-meta {
+    justify-content: center;
+    gap: 4px 10px;
+    font-size: 0.625rem;
+  }
+
+  .masthead-meta > * {
+    white-space: nowrap;
+  }
+
+  .masthead-meta .dot {
+    display: none;
+  }
+
+  .masthead-bar a,
+  .masthead-bar button {
+    padding-block: 2px;
+  }
+
+  .theme-toggle {
+    width: 30px;
+    height: 30px;
+  }
+
+  .brand {
+    padding-block: var(--space-4);
+  }
+
+  .brand-tagline {
+    font-size: 0.72rem;
+  }
+
+  .masthead-search {
+    padding-bottom: var(--space-3);
+  }
+
+  .search-bar-panel {
+    max-height: min(60vh, 360px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .site-nav ul {
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: var(--gutter);
+  }
+
+  .site-nav li {
+    scroll-snap-align: start;
+  }
+
+  /* Fade the right edge so the cut-off item reads as "scroll for more". */
+  .site-nav {
+    position: relative;
+  }
+
+  .site-nav::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    width: 32px;
+    background: linear-gradient(90deg, transparent, var(--paper));
+    pointer-events: none;
+  }
+
+  .byline {
+    gap: 4px 10px;
+  }
+
+  /* Separators orphan onto their own line when the byline wraps on a phone. */
+  .byline > span[aria-hidden='true'] {
+    display: none;
+  }
+
+  .article-title {
+    font-size: clamp(1.75rem, 7.4vw, 2.35rem);
+  }
+
+  .nav-link {
+    min-height: 46px;
+    padding: 0 12px;
+    font-size: 0.7rem;
+  }
+
+  .site-nav li:first-child .nav-link {
+    padding-left: 0;
+  }
+
+  .ticker-label {
+    padding-inline: 9px;
+    font-size: 0.6rem;
+  }
+
+  .ticker-track {
+    padding-inline: 10px;
+    font-size: 0.72rem;
+  }
+
+  /* iOS zooms the whole page when a focused field is under 16px. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .article-body {
+    overflow-wrap: anywhere;
+  }
+}
