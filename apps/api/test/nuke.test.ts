@@ -44,7 +44,7 @@ async function api(method: string, url: string, options: RequestOptions = {}) {
   if (options.session) extra['x-user-session'] = options.session;
   if (options.admin) extra['x-admin-session'] = options.admin;
   return app.inject({
-    method: method as 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    method: method as 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     url,
     ...(options.body === undefined ? {} : { payload: raw }),
     headers: signed(method, url, raw, extra),
@@ -192,6 +192,19 @@ describe('site takedown switch', () => {
     expect(up.json()).toMatchObject({ ok: true, active: false });
     expect(await storedNuke()).toBe('false');
     expect(await auditActions()).toContain('site.restore');
+  });
+
+  it('cannot be flipped from the plain settings form', async () => {
+    const admin = await seedAdmin();
+    const response = await api('PUT', '/admin/settings', {
+      admin,
+      body: { 'site.nuke': true, 'site.tagline': 'Still up.' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(await storedNuke()).toBeNull();
+    const current = await api('GET', '/admin/nuke', { admin });
+    expect(current.json()).toEqual({ active: false });
   });
 
   it('rate limits repeated attempts', async () => {

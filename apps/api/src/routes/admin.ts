@@ -965,6 +965,9 @@ export async function registerAdminRoutes(app: FastifyInstance, db: Db): Promise
     const patch = SettingsSchema.parse(request.body ?? {});
     const clean: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(patch)) {
+      // The takedown switch is password-gated on its own page; refuse to flip it
+      // through the plain settings form so a stray save cannot darken the site.
+      if (key === 'site.nuke') continue;
       if ((Object.keys(SETTING_DEFS) as string[]).includes(key)) clean[key] = value;
     }
     const values = await updateSettings(db, clean, ctx.user.email);

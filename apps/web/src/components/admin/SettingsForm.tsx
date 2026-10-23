@@ -155,13 +155,16 @@ export interface SettingsFormProps {
 
 export function SettingsForm({ definitions, values }: SettingsFormProps): React.JSX.Element {
   const router = useRouter();
-  const [draft, setDraft] = useState<Draft>(() => buildDraft(definitions, values));
+  // The takedown switch has its own password-gated page so it can never be
+  // flipped by a stray click on this form.
+  const editable = definitions.filter((def) => def.key !== 'site.nuke');
+  const [draft, setDraft] = useState<Draft>(() => buildDraft(editable, values));
   const [baseline, setBaseline] = useState<Baseline>(values);
   const [status, setStatus] = useState<SaveStatus | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
-  const groups = groupDefinitions(definitions);
+  const groups = groupDefinitions(editable);
 
   function updateValue(key: string, value: DraftValue): void {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -174,7 +177,7 @@ export function SettingsForm({ definitions, values }: SettingsFormProps): React.
 
     const patch: Record<string, unknown> = {};
 
-    for (const def of definitions) {
+    for (const def of editable) {
       const raw = draft[def.key];
       const current = baseline[def.key];
 
@@ -242,7 +245,7 @@ export function SettingsForm({ definitions, values }: SettingsFormProps): React.
       });
       const savedValues = result.values ?? baseline;
       setBaseline(savedValues);
-      setDraft(buildDraft(definitions, savedValues));
+      setDraft(buildDraft(editable, savedValues));
       const count = Object.keys(patch).length;
       setStatus({
         kind: 'success',
