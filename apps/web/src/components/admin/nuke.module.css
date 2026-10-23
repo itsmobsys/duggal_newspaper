@@ -36,7 +36,7 @@
 }
 
 .dotDown {
-  background: var(--danger);
+  background: var(--accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 18%, transparent);
 }
 
@@ -73,12 +73,14 @@
 }
 
 .nuke {
-  background: var(--danger);
+  background: var(--accent);
+  color: var(--accent-ink);
   box-shadow: var(--shadow-lift);
 }
 
 .restore {
   background: var(--green);
+  color: var(--paper);
   box-shadow: var(--shadow-lift);
 }
 
@@ -119,7 +121,7 @@
   max-width: 460px;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-top: 4px solid var(--danger);
+  border-top: 4px solid var(--accent);
   border-radius: var(--radius);
   padding: var(--space-5);
   box-shadow: var(--shadow-lift);
